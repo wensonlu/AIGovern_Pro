@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Input, Button, Card, Spin, Empty, Badge, Space, Divider, Tag } from 'antd';
+import { Input, Button, Spin, Empty, Badge, Space, Divider, Tag, message } from 'antd';
 import { SendOutlined, CloseOutlined, CopyOutlined, LikeOutlined, DislikeOutlined, MessageOutlined } from '@ant-design/icons';
+import { chatWithKnowledge, type ChatResponse } from '../../services/api';
+import { useApiCall } from '../../hooks/useApiCall';
 import styles from './ChatPanel.module.css';
 
 interface Message {
@@ -29,9 +31,37 @@ const ChatPanel: React.FC = () => {
     },
   ]);
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [sessionId] = useState(() => {
+    // 生成会话ID，用于维持对话连贯性
+    const stored = localStorage.getItem('chat_session_id');
+    if (stored) return stored;
+    const newId = `session_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem('chat_session_id', newId);
+    return newId;
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 使用 useApiCall Hook 管理 API 调用
+  const { execute: sendChat, loading: chatLoading } = useApiCall(chatWithKnowledge, {
+    errorMessage: '知识问答失败，请重试',
+    showMessage: true,
+    onSuccess: (response: ChatResponse) => {
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: response.answer || '无法获取回复',
+        timestamp: new Date(),
+        sources: response.sources?.map((src) => ({
+          title: src.title,
+          url: '#',
+          relevance: src.relevance || 0,
+        })) || [],
+        confidence: response.confidence || 0.8,
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+    },
+  });
 
   const suggestedQuestions: SuggestedQuestion[] = [
     { id: '1', text: '最近7天订单趋势如何？', icon: '📊' },
@@ -60,25 +90,14 @@ const ChatPanel: React.FC = () => {
 
     setMessages(prev => [...prev, userMessage]);
     setInput('');
-    setLoading(true);
 
-    // 模拟AI回复 (实际应调用后端API)
-    setTimeout(() => {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: `这是关于"${text}"的AI回复。系统已调用相关知识库和数据源进行分析。\n\n关键发现：\n1. 数据来源于过去7天的业务数据\n2. 基于RAG检索增强生成技术\n3. 置信度较高，可参考此建议`,
-        timestamp: new Date(),
-        sources: [
-          { title: '企业经营手册.pdf', url: '#', relevance: 0.95 },
-          { title: '销售规范.docx', url: '#', relevance: 0.87 },
-        ],
-        confidence: 0.92,
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-      setLoading(false);
-    }, 1500);
+    try {
+      // 调用真实 API
+      await sendChat(text, sessionId, 5);
+    } catch (error) {
+      // 错误已由 Hook 处理
+      console.error('Chat error:', error);
+    }
   };
 
   const handleSuggestedQuestion = (question: string) => {
@@ -87,6 +106,7 @@ const ChatPanel: React.FC = () => {
 
   const handleCopyMessage = (text: string) => {
     navigator.clipboard.writeText(text);
+    message.success('已复制到剪贴板');
   };
 
   return (
@@ -123,7 +143,7 @@ const ChatPanel: React.FC = () => {
               <Empty description="暂无对话记录" />
             ) : (
               <>
-                {messages.map((msg, idx) => (
+                {messages.map((msg) => (
                   <div key={msg.id} className={`${styles.message} ${styles[msg.type]}`}>
                     {msg.type === 'assistant' && (
                       <div className={styles.avatar}>🤖</div>
@@ -202,7 +222,7 @@ const ChatPanel: React.FC = () => {
                   </div>
                 ))}
 
-                {loading && (
+                {chatLoading && (
                   <div className={`${styles.message} ${styles.assistant}`}>
                     <div className={styles.avatar}>🤖</div>
                     <div className={styles.messageContent}>
@@ -217,7 +237,7 @@ const ChatPanel: React.FC = () => {
           </div>
 
           {/* 推荐问题（当没有消息或开始时显示） */}
-          {messages.length <= 1 && !loading && (
+          {messages.length <= 1 && !chatLoading && (
             <div className={styles.suggestedQuestions}>
               <p className={styles.suggestedTitle}>建议提问</p>
               <Space direction="vertical" style={{ width: '100%' }}>
@@ -253,15 +273,15 @@ const ChatPanel: React.FC = () => {
               }}
               rows={3}
               className={styles.textarea}
-              disabled={loading}
+              disabled={chatLoading}
             />
             <Button
               type="primary"
               icon={<SendOutlined />}
-              loading={loading}
+              loading={chatLoading}
               onClick={() => handleSendMessage()}
               className={styles.sendBtn}
-              disabled={!input.trim() || loading}
+              disabled={!input.trim() || chatLoading}
             >
               发送
             </Button>
@@ -273,3 +293,4 @@ const ChatPanel: React.FC = () => {
 };
 
 export default ChatPanel;
+
