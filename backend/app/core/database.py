@@ -12,7 +12,7 @@ if settings.database_url.startswith("sqlite"):
         connect_args={"check_same_thread": False},
     )
 else:
-    # PostgreSQL 等其他数据库配置
+    # PostgreSQL 等其他数据库配置（包括 Supabase）
     engine = create_engine(
         settings.database_url,
         echo=settings.db_echo,
@@ -31,3 +31,4 @@ def get_db() -> Session:
         yield db
     finally:
         db.close()
+

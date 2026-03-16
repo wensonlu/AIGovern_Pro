@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, Float, DateTime, JSON, For
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
+from pgvector.sqlalchemy import Vector
 
 
 class Document(Base):
@@ -14,6 +15,7 @@ class Document(Base):
     category = Column(String(50), default="general")
     embedding_status = Column(String(50), default="pending")
     chunk_count = Column(Integer, default=0)
+    embedding = Column(Vector(768), nullable=True)  # 文档级别嵌入（可选）
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -21,15 +23,15 @@ class Document(Base):
 
 
 class DocumentChunk(Base):
-    """文档分块表"""
+    """文档分块表（带向量）"""
 
-    __tablename__ = "document_chunks"
+    __tablename__ = "document_chunks_with_vectors"
 
     id = Column(Integer, primary_key=True, index=True)
     document_id = Column(Integer, ForeignKey("documents.id"), nullable=False)
-    chunk_text = Column(Text, nullable=False)
     chunk_index = Column(Integer, nullable=False)
-    embedding = Column(Text)
+    chunk_text = Column(Text, nullable=False)
+    embedding = Column(Vector(768), nullable=True)  # pgvector 768维
     created_at = Column(DateTime, default=datetime.utcnow)
 
     document = relationship("Document", back_populates="chunks")

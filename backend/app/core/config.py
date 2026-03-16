@@ -18,9 +18,9 @@ class Settings:
     # Redis
     redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
-    # Milvus
-    milvus_host: str = os.getenv("MILVUS_HOST", "localhost")
-    milvus_port: int = int(os.getenv("MILVUS_PORT", 19530))
+    # pgvector 配置
+    vector_dimensions: int = int(os.getenv("VECTOR_DIMENSIONS", 768))
+    vector_similarity_metric: str = os.getenv("VECTOR_SIMILARITY_METRIC", "cosine")
 
     # LLM 配置
     llm_provider: str = os.getenv("LLM_PROVIDER", "doubao")
