@@ -1,38 +1,28 @@
 {
   "version": 2,
-  "name": "aigovern-pro",
-  "builds": [
+  "name": "ai-govern-pro",
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/dist",
+  "framework": "vite",
+  "rewrites": [
     {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "frontend/dist"
-      }
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
     },
     {
-      "src": "backend/app/main.py",
-      "use": "@vercel/python"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "backend/app/main.py"
+      "source": "/docs",
+      "destination": "/api/docs"
     },
     {
-      "src": "/docs",
-      "dest": "backend/app/main.py"
+      "source": "/openapi.json",
+      "destination": "/api/openapi.json"
     },
     {
-      "src": "/openapi.json",
-      "dest": "backend/app/main.py"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "frontend/dist/$1"
+      "source": "/((?!api/).*)",
+      "destination": "/$1"
     }
   ],
   "env": {
-    "NODE_VERSION": "18"
+    "VITE_API_URL": "/api"
   }
 }

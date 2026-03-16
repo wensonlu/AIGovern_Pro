@@ -16,7 +16,13 @@ app = FastAPI(
 # CORS 中间件
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:5173",
+        "https://ai-govern-pro.vercel.app",  # Vercel 生产域名
+        "https://*.vercel.app",  # 允许所有 Vercel 子域名
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
