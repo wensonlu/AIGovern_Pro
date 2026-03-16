@@ -128,19 +128,25 @@ async def upload_document(
         for i, chunk in enumerate(chunks):
             embedding = await llm_client.generate_embedding(chunk)
 
+            # 截断到 768 维（Qwen 返回 1536 维，截断到数据库列的维度）
+            embedding_768 = embedding[:768] if len(embedding) > 768 else embedding
+
             # 创建分块记录
             doc_chunk = DocumentChunk(
                 document_id=doc.id,
                 chunk_index=i,
                 chunk_text=chunk,
-                embedding=embedding,  # pgvector 自动处理
+                embedding=embedding_768,  # pgvector 768维
             )
             db.add(doc_chunk)
 
         db.commit()
         embedding_status = "completed"
+        print(f"✓ 文档 {doc.id} 向量化完成: {len(chunks)} 个分块 (1536→768维)")
     except Exception as e:
-        print(f"⚠️ 向量化失败: {e}")
+        print(f"⚠️ 向量化失败 (文档 {doc.id}): {e}")
+        import traceback
+        traceback.print_exc()
         embedding_status = "failed"
         db.rollback()
 

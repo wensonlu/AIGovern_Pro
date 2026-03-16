@@ -20,6 +20,9 @@ class RAGService:
             # 生成查询向量
             query_embedding = await self.llm.generate_embedding(query)
 
+            # 截断到 768 维（与数据库列定义一致）
+            query_embedding_768 = query_embedding[:768] if len(query_embedding) > 768 else query_embedding
+
             # 使用 pgvector 进行余弦相似度搜索
             db = self.db or SessionLocal()
 
@@ -41,7 +44,7 @@ class RAGService:
             """)
 
             # 将向量转换为字符串格式（pgvector 接受 [x,y,z,...] 格式）
-            embedding_str = "[" + ",".join(map(str, query_embedding)) + "]"
+            embedding_str = "[" + ",".join(map(str, query_embedding_768)) + "]"
 
             results = db.execute(
                 sql,
@@ -68,6 +71,8 @@ class RAGService:
 
         except Exception as e:
             print(f"❌ pgvector 检索失败: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
     async def generate_answer(

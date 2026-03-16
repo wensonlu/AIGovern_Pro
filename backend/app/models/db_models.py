@@ -16,7 +16,7 @@ class Document(Base):
     category = Column(String(50), default="general")
     embedding_status = Column(String(50), default="pending")
     chunk_count = Column(Integer, default=0)
-    embedding = Column(Vector(768), nullable=True)  # 文档级别嵌入（可选）
+    embedding = Column(Vector(768), nullable=True)  # 文档级别嵌入（可选）- Qwen向量截断到768维
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -32,7 +32,7 @@ class DocumentChunk(Base):
     document_id = Column(Integer, ForeignKey("documents.id"), nullable=False)
     chunk_index = Column(Integer, nullable=False)
     chunk_text = Column(Text, nullable=False)
-    embedding = Column(Vector(768), nullable=True)  # pgvector 768维
+    embedding = Column(Vector(768), nullable=True)  # pgvector 768维 (Qwen向量截断)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     document = relationship("Document", back_populates="chunks")
