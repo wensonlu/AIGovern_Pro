@@ -114,6 +114,7 @@ async def upload_document(
     # 创建文档记录
     doc = Document(
         title=title,
+        filename=file.filename,  # 保存原始文件名
         category=category,
         embedding_status="processing",
         chunk_count=len(chunks),

@@ -10,7 +10,14 @@ interface Message {
   type: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  sources?: Array<{ title: string; url: string; relevance: number }>;
+  sources?: Array<{
+    document_id?: number | string;
+    title: string;
+    filename?: string;
+    relevance: number;
+    relevance_percentage: string;
+    text_preview?: string;
+  }>;
   confidence?: number;
 }
 
@@ -52,11 +59,7 @@ const ChatPanel: React.FC = () => {
         type: 'assistant',
         content: response.answer || '无法获取回复',
         timestamp: new Date(),
-        sources: response.sources?.map((src) => ({
-          title: src.title,
-          url: '#',
-          relevance: src.relevance || 0,
-        })) || [],
+        sources: response.sources || [],
         confidence: response.confidence || 0.8,
       };
       setMessages(prev => [...prev, assistantMessage]);
@@ -178,11 +181,11 @@ const ChatPanel: React.FC = () => {
                                 key={i}
                                 color="cyan"
                                 className={styles.sourceTag}
-                                onClick={() => handleCopyMessage(source.title)}
+                                onClick={() => handleCopyMessage(source.filename || source.title)}
                               >
-                                {source.title}
+                                <span>📄 {source.filename || source.title}</span>
                                 <span className={styles.relevance}>
-                                  {(source.relevance * 100).toFixed(0)}%
+                                  {source.relevance_percentage}
                                 </span>
                               </Tag>
                             ))}

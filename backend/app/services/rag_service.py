@@ -23,17 +23,20 @@ class RAGService:
             # 使用 pgvector 进行余弦相似度搜索
             db = self.db or SessionLocal()
 
-            # SQL 查询：使用 <=> 运算符（余弦距离）
+            # SQL 查询：JOIN documents 表来获取文件名
             sql = text("""
                 SELECT
-                    id,
-                    document_id,
-                    chunk_index,
-                    chunk_text,
-                    1 - (embedding <=> CAST(:query_embedding AS vector(768))) as relevance
-                FROM document_chunks_with_vectors
-                WHERE embedding IS NOT NULL
-                ORDER BY embedding <=> CAST(:query_embedding AS vector(768))
+                    dc.id,
+                    dc.document_id,
+                    dc.chunk_index,
+                    dc.chunk_text,
+                    d.title,
+                    d.filename,
+                    1 - (dc.embedding <=> CAST(:query_embedding AS vector(768))) as relevance
+                FROM document_chunks_with_vectors dc
+                JOIN documents d ON dc.document_id = d.id
+                WHERE dc.embedding IS NOT NULL
+                ORDER BY dc.embedding <=> CAST(:query_embedding AS vector(768))
                 LIMIT :top_k
             """)
 
@@ -56,6 +59,8 @@ class RAGService:
                     "chunk_id": row.id,
                     "chunk_index": row.chunk_index,
                     "text": row.chunk_text,
+                    "title": row.title,
+                    "filename": row.filename,
                     "relevance": relevance,
                 })
 
@@ -105,12 +110,18 @@ class RAGService:
         # 构建信息源引用
         sources = []
         for i, doc in enumerate(retrieved_docs[:top_k]):
+            relevance = doc.get("relevance", 0.0)
+            # 计算百分比格式 (85%)
+            relevance_pct = round(relevance * 100)
+
             sources.append(
                 SourceReference(
                     document_id=doc.get("document_id"),
-                    title=f"文档 {i+1}",
+                    title=doc.get("title", f"文档 {i+1}"),
+                    filename=doc.get("filename"),  # 添加实际文件名
                     chunk_index=doc.get("chunk_index"),
-                    relevance=doc.get("relevance", 0.0),
+                    relevance=relevance,
+                    relevance_percentage=f"{relevance_pct}%",  # 百分比格式
                     text_preview=doc.get("text", "")[:200],
                 )
             )

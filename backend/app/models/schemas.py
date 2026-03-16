@@ -40,8 +40,10 @@ class SourceReference(BaseModel):
     """信息源引用"""
     document_id: int
     title: str
+    filename: Optional[str] = None  # 上传的原始文件名
     chunk_index: int
-    relevance: float = Field(..., ge=0, le=1)
+    relevance: float = Field(..., ge=0, le=1)  # 0-1 范围，用于计算百分比
+    relevance_percentage: str = Field(...)  # "85%" 格式，便于前端直接展示
     text_preview: str
 
 

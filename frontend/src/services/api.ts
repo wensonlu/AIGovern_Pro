@@ -11,8 +11,10 @@ export interface HealthResponse {
 export interface SourceReference {
   document_id?: number | string;
   title: string;
+  filename?: string;
   chunk_index?: number;
   relevance: number;
+  relevance_percentage: string;
   text_preview?: string;
 }
 

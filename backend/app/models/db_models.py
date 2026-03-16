@@ -12,6 +12,7 @@ class Document(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(200), nullable=False)
+    filename = Column(String(255), nullable=True)  # 上传的原始文件名
     category = Column(String(50), default="general")
     embedding_status = Column(String(50), default="pending")
     chunk_count = Column(Integer, default=0)
