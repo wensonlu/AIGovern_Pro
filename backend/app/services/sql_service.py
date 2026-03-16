@@ -98,6 +98,19 @@ SELECT ... FROM ... WHERE ...
         """根据查询获取示例 SQL"""
         query_lower = query.lower()
 
+        # 时间范围查询（最近N天）
+        if "最近" in query_lower or "近" in query_lower or "趋势" in query_lower:
+            # 提取天数，默认7天
+            import re
+            days_match = re.search(r'(\d+)\s*天', query_lower)
+            days = days_match.group(1) if days_match else "7"
+            
+            if "gmv" in query_lower or "金额" in query_lower or "营收" in query_lower:
+                return f"SELECT DATE(created_at) as date, SUM(amount) as gmv FROM orders WHERE created_at >= CURRENT_DATE - INTERVAL '{days} days' GROUP BY DATE(created_at) ORDER BY date"
+            else:
+                # 默认返回订单趋势
+                return f"SELECT DATE(created_at) as date, COUNT(*) as order_count FROM orders WHERE created_at >= CURRENT_DATE - INTERVAL '{days} days' GROUP BY DATE(created_at) ORDER BY date"
+        
         if "订单" in query_lower and ("总数" in query_lower or "数量" in query_lower):
             return "SELECT COUNT(*) as total_orders, DATE(created_at) as date FROM orders GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 10"
         elif "gmv" in query_lower or "金额" in query_lower:

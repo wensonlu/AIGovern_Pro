@@ -227,7 +227,23 @@ class OperationService:
         if product_id:
             product = db.query(Product).filter(Product.id == product_id).first()
         elif product_name:
-            product = db.query(Product).filter(Product.name.ilike(f"%{product_name}%")).first()
+            # 尝试精确匹配 SKU（如果输入包含类似 SKU 的格式）
+            import re
+            sku_match = re.search(r'\b([A-Z]+\d+)\b', product_name)
+            if sku_match:
+                sku = sku_match.group(1)
+                product = db.query(Product).filter(Product.sku.ilike(sku)).first()
+            
+            # 如果 SKU 匹配失败，尝试按名称查询（去除可能的 SKU 部分）
+            if not product:
+                # 移除 SKU 部分，保留纯名称
+                clean_name = re.sub(r'\s*[A-Z]+\d+\s*', '', product_name).strip()
+                if clean_name:
+                    product = db.query(Product).filter(Product.name.ilike(f"%{clean_name}%")).first()
+            
+            # 最后尝试原始名称模糊查询
+            if not product:
+                product = db.query(Product).filter(Product.name.ilike(f"%{product_name}%")).first()
 
         if not product:
             raise ValueError(f"商品不存在")
