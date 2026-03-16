@@ -34,7 +34,45 @@ class LLMClient:
 
     def _generate_mock_response(self, prompt: str) -> str:
         """本地 mock 实现，用于演示和测试"""
-        # 简单的模式匹配返回演示内容
+        # 检查 prompt 中是否包含真实的文档内容（由 RAG 提供）
+        if "文档内容：\n文档 1:" in prompt:
+            # 这是一个有文档的 RAG 提示词
+            # 从 prompt 中提取文档内容并生成基于文档的回答
+
+            # 检查是否是 "无文档" 场景
+            if "知识库中没有匹配的内容" in prompt:
+                # 这是我们在 generate_answer 中设置的无文档提示词
+                question_start = prompt.find("问题：")
+                if question_start != -1:
+                    question = prompt[question_start + 3:].strip()
+                    # 基于问题类型返回通用答案
+                    if "入职" in question or "onboarding" in question.lower():
+                        return "知识库中没有找到相关文档，以下是基于一般知识的回答：\n\n新员工入职通常包括HR报到、IT账号激活、部门介绍和培训等环节。建议您上传内部入职指南文档到知识库获得更准确的信息。"
+                    elif "保修" in question or "warranty" in question.lower():
+                        return "知识库中没有找到相关文档，以下是基于一般知识的回答：\n\n产品保修通常需要提供购买证明和产品序列号。具体保修政策和流程请查询官方文档。"
+                    else:
+                        return "知识库中没有找到相关文档，以下是基于一般知识的回答。请上传相关文档到知识库以获得更准确的信息。"
+
+            # 有真实文档的情况 - 基于文档生成答案
+            # 提取问题
+            question_start = prompt.find("问题：")
+            if question_start != -1:
+                question = prompt[question_start + 3:].strip()
+                # 提取文档内容
+                doc_start = prompt.find("文档内容：\n")
+                if doc_start != -1:
+                    doc_content = prompt[doc_start + 10:]  # 跳过 "文档内容：\n"
+                    # 返回基于文档的答案
+                    return f"""根据检索到的知识库文档：
+
+{doc_content}
+
+**答案总结**：
+- 提问："{ question}"
+- 回答：已根据以上文档内容为您解答
+- 建议：如需更详细信息，请查看引用的文档"""
+
+        # 不是 RAG 提示词，使用通用的 Mock 响应
         prompt_lower = prompt.lower()
 
         if "入职" in prompt or "onboarding" in prompt_lower:
@@ -99,19 +137,21 @@ class LLMClient:
 - 本月：约 5,000 笔"""
 
         else:
-            return f"""我已接收您的问题，这是一个演示响应。
+            return """🤖 系统当前使用演示模式
 
-**问题概要**: {prompt[:100]}...
+**配置说明**：当前系统未配置真实的 LLM API，使用本地演示响应。
 
-**说明**: 当前系统使用本地 mock 实现进行演示。若要使用真实 LLM 能力，请配置以下环境变量：
-- LLM_PROVIDER: doubao 或 qwen
-- LLM_API_KEY: 您的 API 密钥
-- LLM_MODEL_NAME: 模型名称
-
-本地演示模式支持以下查询：
+**已支持的演示查询**：
 - 入职流程相关问题
 - 产品保修相关问题
-- 订单数据相关问题"""
+- 订单数据相关问题
+
+**如要完整功能**，请配置以下环境变量：
+- `LLM_PROVIDER`：doubao 或 qwen
+- `LLM_API_KEY`：您的 API 密钥
+- `LLM_MODEL_NAME`：相应的模型名称
+
+**上传知识库文档后**，系统会使用真实检索内容为您回答问题。"""
 
     async def _generate_with_doubao(self, prompt: str, max_tokens: int) -> str:
         """豆包 API 调用"""

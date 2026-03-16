@@ -7,6 +7,9 @@ import styles from './Documents.module.css';
 
 const { TextArea } = Input;
 
+// API 配置
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 interface DocumentItem {
   id: string;
   name: string;
@@ -272,7 +275,7 @@ const Documents: React.FC = () => {
           <div className={styles.uploadSection}>
             <Upload.Dragger
               name="file"
-              action="https://api.example.com/upload"
+              action={`${API_BASE_URL}/api/documents/upload`}
               onChange={handleUpload}
               multiple
               accept=".pdf,.doc,.docx,.txt,.md"

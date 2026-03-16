@@ -8,6 +8,9 @@ from app.core.config import settings
 from app.core.llm import llm_client
 from datetime import datetime
 import os
+from io import BytesIO
+from PyPDF2 import PdfReader
+from docx import Document as DocxDocument
 
 
 class RetrievalRequest(BaseModel):
@@ -21,28 +24,50 @@ async def extract_text_from_file(file_content: bytes, filename: str) -> str:
     """从文件提取文本"""
     ext = filename.split(".")[-1].lower()
 
-    if ext == "txt":
-        return file_content.decode("utf-8")
-    elif ext == "md":
-        return file_content.decode("utf-8")
-    elif ext == "pdf":
-        try:
-            text = file_content.decode("utf-8", errors="ignore")
-            return text[:1000]
-        except Exception:
-            return "[PDF 提取失败]"
-    elif ext == "docx":
-        return "[DOCX 提取需要 python-docx 库]"
-    else:
-        return ""
+    try:
+        if ext == "txt":
+            return file_content.decode("utf-8", errors="replace").replace("\x00", "")
+        elif ext == "md":
+            return file_content.decode("utf-8", errors="replace").replace("\x00", "")
+        elif ext == "pdf":
+            # 使用 PyPDF2 提取 PDF 文本
+            try:
+                pdf_reader = PdfReader(BytesIO(file_content))
+                text = ""
+                for page in pdf_reader.pages:
+                    text += page.extract_text() or ""
+                return text.replace("\x00", "") if text else "[PDF 文本提取失败]"
+            except Exception as pdf_err:
+                print(f"❌ PDF 提取错误: {pdf_err}")
+                return "[PDF 提取失败]"
+        elif ext == "docx":
+            # 使用 python-docx 提取 DOCX 文本
+            try:
+                docx_doc = DocxDocument(BytesIO(file_content))
+                text = "\n".join([para.text for para in docx_doc.paragraphs])
+                return text.replace("\x00", "") if text else "[DOCX 文本提取失败]"
+            except Exception as docx_err:
+                print(f"❌ DOCX 提取错误: {docx_err}")
+                return "[DOCX 提取失败]"
+        else:
+            return ""
+    except Exception as e:
+        print(f"❌ 文件提取异常: {e}")
+        return "[文件提取异常]"
 
 
 def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
     """分块处理文本"""
+    # 清理 NUL 字符
+    text = text.replace("\x00", "").strip()
+
+    if not text:
+        return []
+
     chunks = []
     for i in range(0, len(text), chunk_size - overlap):
-        chunk = text[i : i + chunk_size]
-        if chunk.strip():
+        chunk = text[i : i + chunk_size].strip()
+        if chunk and len(chunk) > 10:  # 至少10个字符
             chunks.append(chunk)
     return chunks
 
