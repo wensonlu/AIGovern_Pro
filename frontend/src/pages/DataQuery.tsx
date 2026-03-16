@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Input, Button, Card, Table, Empty, Space, Badge, Row, Col, Tag, Alert } from 'antd';
-import { SendOutlined, CopyOutlined, DownloadOutlined } from '@ant-design/icons';
+import { Input, Button, Card, Table, Empty, Space, Badge, Row, Col, Tag, Alert, message, Dropdown } from 'antd';
+import { SendOutlined, CopyOutlined, DownloadOutlined, FileExcelOutlined, FileTextOutlined } from '@ant-design/icons';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import AppLayout from '../components/Layout';
 import styles from './DataQuery.module.css';
+import axios from 'axios';
 
 const DataQuery: React.FC = () => {
   const [query, setQuery] = useState('');
@@ -12,30 +13,108 @@ const DataQuery: React.FC = () => {
   const [generatedSql, setGeneratedSql] = useState('');
   const [chartType, setChartType] = useState('');
 
-  const mockChartData = [
-    { date: '3/7', count: 245 },
-    { date: '3/8', count: 310 },
-    { date: '3/9', count: 280 },
-    { date: '3/10', count: 380 },
-    { date: '3/11', count: 420 },
-    { date: '3/12', count: 360 },
-    { date: '3/13', count: 480 },
-  ];
+
 
   const handleQuery = async () => {
     if (!query.trim()) return;
     setLoading(true);
 
-    // 模拟SQL生成和查询执行
-    setTimeout(() => {
-      setGeneratedSql(
-        `SELECT DATE(created_at) as date, COUNT(*) as count FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) GROUP BY DATE(created_at) ORDER BY date ASC`,
-      );
-      setChartType('line');
-      setResults(mockChartData);
+    try {
+      // 调用后端真实 API
+      const response = await axios.post('http://localhost:8000/api/query', {
+        natural_language_query: query,
+        context: {},
+      });
+
+      const data = response.data;
+      setGeneratedSql(data.sql);
+      setChartType(data.chart_type);
+      setResults(data.result || []);
+      message.success(`查询成功！返回 ${data.rows_count} 条数据，耗时 ${data.execution_time.toFixed(2)}s`);
+    } catch (error: any) {
+      message.error('查询失败: ' + (error.response?.data?.detail || error.message));
+      setResults([]);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
+
+  // 导出数据为 CSV
+  const exportToCSV = () => {
+    if (results.length === 0) {
+      message.warning('没有数据可导出');
+      return;
+    }
+
+    // 获取表头
+    const headers = Object.keys(results[0]);
+    
+    // 转换数据为 CSV 格式
+    const csvContent = [
+      headers.join(','), // 表头
+      ...results.map(row => 
+        headers.map(header => {
+          const value = row[header];
+          // 处理包含逗号或引号的值
+          const stringValue = value === null || value === undefined ? '' : String(value);
+          if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+            return `"${stringValue.replace(/"/g, '""')}"`;
+          }
+          return stringValue;
+        }).join(',')
+      )
+    ].join('\n');
+
+    // 创建下载链接
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = `query_result_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    message.success('CSV 文件导出成功！');
+  };
+
+  // 导出数据为 JSON
+  const exportToJSON = () => {
+    if (results.length === 0) {
+      message.warning('没有数据可导出');
+      return;
+    }
+
+    const jsonContent = JSON.stringify(results, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = `query_result_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    message.success('JSON 文件导出成功！');
+  };
+
+  // 导出菜单项
+  const exportMenuItems = [
+    {
+      key: 'csv',
+      icon: <FileExcelOutlined />,
+      label: '导出为 CSV',
+      onClick: exportToCSV,
+    },
+    {
+      key: 'json',
+      icon: <FileTextOutlined />,
+      label: '导出为 JSON',
+      onClick: exportToJSON,
+    },
+  ];
 
   return (
     <AppLayout currentMenu="query">
@@ -90,16 +169,29 @@ const DataQuery: React.FC = () => {
             <Col xs={24} lg={16}>
               <Card className={styles.chartCard} title="数据可视化" bordered={false}>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={results}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#404854" />
-                    <XAxis dataKey="date" stroke="#909399" />
-                    <YAxis stroke="#909399" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: 8 }}
-                      labelStyle={{ color: '#fff' }}
-                    />
-                    <Line type="monotone" dataKey="count" stroke="#00D9FF" strokeWidth={2} dot={false} />
-                  </LineChart>
+                  {chartType === 'bar' ? (
+                    <BarChart data={results}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#404854" />
+                      <XAxis dataKey={Object.keys(results[0])[0]} stroke="#909399" />
+                      <YAxis stroke="#909399" />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: 8 }}
+                        labelStyle={{ color: '#fff' }}
+                      />
+                      <Bar dataKey={Object.keys(results[0])[1]} fill="#00D9FF" />
+                    </BarChart>
+                  ) : (
+                    <LineChart data={results}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#404854" />
+                      <XAxis dataKey={Object.keys(results[0])[0]} stroke="#909399" />
+                      <YAxis stroke="#909399" />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: 8 }}
+                        labelStyle={{ color: '#fff' }}
+                      />
+                      <Line type="monotone" dataKey={Object.keys(results[0])[1]} stroke="#00D9FF" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  )}
                 </ResponsiveContainer>
               </Card>
             </Col>
@@ -110,17 +202,11 @@ const DataQuery: React.FC = () => {
                     <span>总数据行数</span>
                     <span className={styles.statValue}>{results.length}</span>
                   </div>
-                  <div className={styles.statItem}>
-                    <span>最大值</span>
-                    <span className={styles.statValue}>{Math.max(...results.map(r => r.count))}</span>
-                  </div>
-                  <div className={styles.statItem}>
-                    <span>最小值</span>
-                    <span className={styles.statValue}>{Math.min(...results.map(r => r.count))}</span>
-                  </div>
-                  <Button type="primary" block icon={<DownloadOutlined />}>
-                    导出数据
-                  </Button>
+                  <Dropdown menu={{ items: exportMenuItems }} placement="top" arrow>
+                    <Button type="primary" block icon={<DownloadOutlined />}>
+                      导出数据
+                    </Button>
+                  </Dropdown>
                 </Space>
               </Card>
             </Col>
@@ -131,13 +217,19 @@ const DataQuery: React.FC = () => {
           <Card className={styles.tableCard} title="结果明细" bordered={false} style={{ marginTop: 24 }}>
             <Table
               dataSource={results}
-              columns={[
-                { title: '日期', dataIndex: 'date', key: 'date' },
-                { title: '数量', dataIndex: 'count', key: 'count' },
-              ]}
-              rowKey="date"
-              pagination={false}
+              columns={results.length > 0 
+                ? Object.keys(results[0]).map(key => ({ 
+                    title: key, 
+                    dataIndex: key, 
+                    key,
+                    ellipsis: true,
+                  }))
+                : []
+              }
+              rowKey={(record, index) => index?.toString() || '0'}
+              pagination={{ pageSize: 10 }}
               className={styles.table}
+              scroll={{ x: 'max-content' }}
             />
           </Card>
         )}

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
-from app.api import documents, chat, query, operations, diagnosis
+from app.api import documents, chat, query, operations, diagnosis, products
 
 # 创建 FastAPI 应用
 app = FastAPI(
@@ -29,6 +29,7 @@ app.include_router(chat.router)
 app.include_router(query.router)
 app.include_router(operations.router)
 app.include_router(diagnosis.router)
+app.include_router(products.router)
 
 
 # 健康检查

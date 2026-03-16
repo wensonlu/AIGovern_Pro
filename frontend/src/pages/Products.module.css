@@ -1,0 +1,72 @@
+.pageContainer {
+  padding: 24px;
+}
+
+.pageHeader {
+  margin-bottom: 24px;
+}
+
+.pageTitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: #e5e7eb;
+  margin-bottom: 8px;
+}
+
+.pageSubtitle {
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.tableCard {
+  background: #1f2937;
+  border: none;
+}
+
+.emptyHistory {
+  text-align: center;
+  padding: 48px 0;
+  color: #9ca3af;
+}
+
+.historyTimeline {
+  padding: 16px;
+}
+
+.historyItem {
+  padding: 8px 0;
+}
+
+.historyPrice {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.oldPrice {
+  color: #9ca3af;
+  text-decoration: line-through;
+  margin-right: 8px;
+}
+
+.arrow {
+  color: #6b7280;
+  margin: 0 8px;
+}
+
+.newPrice {
+  color: #10b981;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.historyInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.reason {
+  color: #6b7280;
+  font-size: 12px;
+}

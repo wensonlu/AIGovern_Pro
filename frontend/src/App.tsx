@@ -5,6 +5,7 @@ import Documents from './pages/Documents'
 import DataQuery from './pages/DataQuery'
 import SmartOps from './pages/SmartOps'
 import Diagnosis from './pages/Diagnosis'
+import Products from './pages/Products'
 import ChatPanel from './components/AGUI/ChatPanel'
 
 const App: React.FC = () => {
@@ -17,6 +18,7 @@ const App: React.FC = () => {
         <Route path="/query" element={<DataQuery />} />
         <Route path="/operations" element={<SmartOps />} />
         <Route path="/diagnosis" element={<Diagnosis />} />
+        <Route path="/products" element={<Products />} />
       </Routes>
       <ChatPanel />
     </BrowserRouter>

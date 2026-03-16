@@ -115,3 +115,20 @@ class QueryCache(Base):
     result = Column(JSON)
     expires_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ProductPriceHistory(Base):
+    """商品价格修改历史表"""
+
+    __tablename__ = "product_price_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    old_price = Column(Float, nullable=False)
+    new_price = Column(Float, nullable=False)
+    changed_by = Column(String(100), nullable=False)  # 'user' 或 'ai'
+    changed_by_id = Column(Integer, nullable=True)  # 用户ID或AI会话ID
+    reason = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    product = relationship("Product")

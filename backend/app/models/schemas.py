@@ -124,3 +124,29 @@ class DiagnosisAnalysis(BaseModel):
     root_cause: str
     recommendation: str
     priority: str  # high, medium, low
+
+
+# ==================== 商品管理相关 ====================
+
+class ProductResponse(BaseModel):
+    """商品响应"""
+    id: int
+    name: str
+    sku: str
+    price: float
+    stock: int
+    category: str
+    created_at: datetime
+
+
+class ProductPriceHistoryResponse(BaseModel):
+    """商品价格历史响应"""
+    id: int
+    product_id: int
+    product_name: str
+    old_price: float
+    new_price: float
+    changed_by: str  # 'user' 或 'ai'
+    changed_by_id: Optional[int]
+    reason: Optional[str]
+    created_at: datetime

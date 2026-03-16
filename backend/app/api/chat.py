@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.schemas import ChatRequest, ChatResponse
-from app.services.rag_service import rag_service
+from app.services.agent_service import agent_service
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -12,12 +12,14 @@ async def process_chat(
     request: ChatRequest,
     db: Session = Depends(get_db),
 ):
-    """处理用户对话请求"""
-
-    response = await rag_service.process_query(
-        question=request.question,
+    """
+    处理用户对话请求
+    支持：知识问答(RAG)、数据查询(SQL)、智能操作(Operation)
+    """
+    response = await agent_service.process_message(
+        message=request.question,
+        db=db,
         session_id=request.session_id,
-        top_k=request.top_k,
     )
 
     return response

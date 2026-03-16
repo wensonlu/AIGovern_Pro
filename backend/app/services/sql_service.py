@@ -61,10 +61,20 @@ SELECT ... FROM ... WHERE ...
             result = db.execute(text(sql))
             rows = result.fetchall()
 
-            # 转换为字典列表
+            # 转换为字典列表，处理 datetime 类型
             if rows:
                 columns = result.keys()
-                return [dict(zip(columns, row)) for row in rows]
+                processed_rows = []
+                for row in rows:
+                    row_dict = {}
+                    for key, value in zip(columns, row):
+                        # 处理 datetime 类型
+                        if hasattr(value, 'isoformat'):
+                            row_dict[key] = value.isoformat()
+                        else:
+                            row_dict[key] = value
+                    processed_rows.append(row_dict)
+                return processed_rows
             return []
         except Exception as e:
             raise RuntimeError(f"SQL 执行失败: {e}")
