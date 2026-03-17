@@ -64,7 +64,11 @@ export interface AnalysisResponse {
   recommendations: string[];
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// API 基础地址
+// 生产环境使用相对路径（同域部署），开发环境使用 localhost
+const API_BASE_URL = import.meta.env.PROD 
+  ? (import.meta.env.VITE_API_URL || '')  // 生产环境：空字符串表示相对路径
+  : (import.meta.env.VITE_API_URL || 'http://localhost:8000');  // 开发环境
 const API_TIMEOUT = import.meta.env.VITE_API_TIMEOUT || 30000;
 const MAX_RETRIES = 3;
 

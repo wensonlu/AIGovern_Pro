@@ -36,3 +36,4 @@ venv/
 
 # Lock files (optional - uncomment to include)
 pnpm-lock.yaml
+.codebuddy/
