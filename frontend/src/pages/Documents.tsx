@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Button, Upload, Table, Tag, Space, Modal, Input, Card, Progress, Row, Col, Empty, Spin, Alert } from 'antd';
-import { InboxOutlined, DeleteOutlined, EyeOutlined, CheckOutlined, ReloadOutlined } from '@ant-design/icons';
-import { RcFile, UploadChangeParam, UploadFile } from 'antd/es/upload/interface';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { Button, Upload, Table, Tag, Space, Modal, Input, Card, Progress, Row, Col, Empty, Spin, Alert, Skeleton } from 'antd';
+import { InboxOutlined, DeleteOutlined, EyeOutlined, CheckOutlined } from '@ant-design/icons';
+import { UploadChangeParam, UploadFile } from 'antd/es/upload/interface';
 import AppLayout from '../components/Layout';
 import styles from './Documents.module.css';
 
@@ -26,6 +26,7 @@ interface DocumentItem {
 }
 
 const Documents: React.FC = () => {
+  const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState<DocumentItem[]>([
     {
       id: '1',
@@ -109,12 +110,12 @@ const Documents: React.FC = () => {
     }
   };
 
-  const handleTestRetrieval = (doc: DocumentItem) => {
+  const handleTestRetrieval = useCallback((doc: DocumentItem) => {
     setSelectedDoc(doc);
     setTestModalVisible(true);
     setTestQuery('');
     setTestResult(null);
-  };
+  }, []);
 
   const runRetrievalTest = async () => {
     if (!testQuery.trim() || !selectedDoc) return;
@@ -148,118 +149,149 @@ const Documents: React.FC = () => {
     }, 1500);
   };
 
-  const handleDeleteDocument = (id: string) => {
+  const handleDeleteDocument = useCallback((id: string) => {
     Modal.confirm({
       title: '删除文档',
       content: '确认删除该文档？此操作不可撤销。',
       okText: '删除',
       cancelText: '取消',
       onOk() {
-        setDocuments(documents.filter(doc => doc.id !== id));
+        setDocuments(prev => prev.filter(doc => doc.id !== id));
       },
     });
-  };
+  }, []);
 
-  const columns = [
-    {
-      title: '文档名称',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text: string) => (
-        <div className={styles.docName}>
-          <span className={styles.docIcon}>📄</span>
-          {text}
-        </div>
-      ),
-    },
-    {
-      title: '文件大小',
-      dataIndex: 'size',
-      key: 'size',
-      render: (size: number) => `${(size / 1024).toFixed(2)} MB`,
-    },
-    {
-      title: '向量化进度',
-      dataIndex: 'embeddingProgress',
-      key: 'embeddingProgress',
-      render: (progress: number, record: DocumentItem) => (
-        <div className={styles.progressCell}>
-          <Progress
-            percent={progress}
-            size="small"
-            status={
-              record.status === 'completed'
-                ? 'success'
-                : record.status === 'failed'
-                  ? 'exception'
-                  : 'active'
-            }
-            strokeColor={{
-              '0%': '#7f5af0',
-              '100%': '#00d9ff',
-            }}
-          />
-          {record.chunks > 0 && (
-            <span className={styles.chunkCount}>({record.chunks}个文段)</span>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => {
-        const statusConfig: Record<string, { color: string; text: string }> = {
-          pending: { color: 'default', text: '待处理' },
-          processing: { color: 'processing', text: '处理中' },
-          completed: { color: 'success', text: '已完成' },
-          failed: { color: 'error', text: '失败' },
-        };
-        return <Tag color={statusConfig[status]?.color}>{statusConfig[status]?.text}</Tag>;
+  const columns = useMemo(
+    () => [
+      {
+        title: '文档名称',
+        dataIndex: 'name',
+        key: 'name',
+        sorter: (a: DocumentItem, b: DocumentItem) => a.name.localeCompare(b.name),
+        render: (text: string) => (
+          <div className={styles.docName}>
+            <span className={styles.docIcon}>📄</span>
+            {text}
+          </div>
+        ),
       },
-    },
-    {
-      title: '上传时间',
-      dataIndex: 'uploadTime',
-      key: 'uploadTime',
-    },
-    {
-      title: '操作',
-      key: 'action',
-      render: (_: any, record: DocumentItem) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => Modal.info({ title: record.name, content: '文档预览内容（此处展示摘要）' })}
-          >
-            预览
-          </Button>
-          {record.status === 'completed' && (
+      {
+        title: '文件大小',
+        dataIndex: 'size',
+        key: 'size',
+        sorter: (a: DocumentItem, b: DocumentItem) => a.size - b.size,
+        render: (size: number) => `${(size / 1024).toFixed(2)} MB`,
+      },
+      {
+        title: '向量化进度',
+        dataIndex: 'embeddingProgress',
+        key: 'embeddingProgress',
+        render: (progress: number, record: DocumentItem) => (
+          <div className={styles.progressCell}>
+            <Progress
+              percent={progress}
+              size="small"
+              status={
+                record.status === 'completed'
+                  ? 'success'
+                  : record.status === 'failed'
+                    ? 'exception'
+                    : 'active'
+              }
+              strokeColor={{
+                '0%': '#7f5af0',
+                '100%': '#00d9ff',
+              }}
+            />
+            {record.chunks > 0 && (
+              <span className={styles.chunkCount}>({record.chunks}个文段)</span>
+            )}
+          </div>
+        ),
+      },
+      {
+        title: '状态',
+        dataIndex: 'status',
+        key: 'status',
+        filters: [
+          { text: '待处理', value: 'pending' },
+          { text: '处理中', value: 'processing' },
+          { text: '已完成', value: 'completed' },
+          { text: '失败', value: 'failed' },
+        ],
+        onFilter: (value: boolean | React.Key, record: DocumentItem) =>
+          record.status === value,
+        render: (status: string) => {
+          const statusConfig: Record<string, { color: string; text: string }> = {
+            pending: { color: 'default', text: '待处理' },
+            processing: { color: 'processing', text: '处理中' },
+            completed: { color: 'success', text: '已完成' },
+            failed: { color: 'error', text: '失败' },
+          };
+          return <Tag color={statusConfig[status]?.color}>{statusConfig[status]?.text}</Tag>;
+        },
+      },
+      {
+        title: '上传时间',
+        dataIndex: 'uploadTime',
+        key: 'uploadTime',
+      },
+      {
+        title: '操作',
+        key: 'action',
+        render: (_: any, record: DocumentItem) => (
+          <Space size="small">
             <Button
               type="link"
               size="small"
-              icon={<CheckOutlined />}
-              onClick={() => handleTestRetrieval(record)}
+              icon={<EyeOutlined />}
+              onClick={() => Modal.info({ title: record.name, content: '文档预览内容（此处展示摘要）' })}
             >
-              测试
+              预览
             </Button>
-          )}
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeleteDocument(record.id)}
-          >
-            删除
-          </Button>
-        </Space>
-      ),
-    },
-  ];
+            {record.status === 'completed' && (
+              <Button
+                type="link"
+                size="small"
+                icon={<CheckOutlined />}
+                onClick={() => handleTestRetrieval(record)}
+              >
+                测试
+              </Button>
+            )}
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDeleteDocument(record.id)}
+            >
+              删除
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    [handleDeleteDocument, handleTestRetrieval],
+  );
+
+  // Simulate initial loading
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Loading skeleton
+  if (loading) {
+    return (
+      <AppLayout currentMenu="documents">
+        <div className={styles.pageContainer}>
+          <Skeleton active paragraph={{ rows: 4 }} />
+          <Skeleton active paragraph={{ rows: 8 }} style={{ marginTop: 24 }} />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout currentMenu="documents">

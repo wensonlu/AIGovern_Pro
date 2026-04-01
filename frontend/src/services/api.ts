@@ -88,10 +88,10 @@ async function fetchWithRetry(
   options: RequestInit,
   retries: number = 0
 ): Promise<Response> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
 
+  try {
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
@@ -105,7 +105,7 @@ async function fetchWithRetry(
 
     return response;
   } catch (error) {
-    clearTimeout;
+    clearTimeout(timeoutId);
     if (retries < MAX_RETRIES && shouldRetry(error)) {
       const backoff = 1000 * Math.pow(2, retries); // 指数退避
       console.warn(`[API重试] ${url} (${retries + 1}/${MAX_RETRIES}) 等待${backoff}ms...`);
@@ -125,7 +125,9 @@ async function callAPI<T>(
   const url = `${API_BASE_URL}${endpoint}`;
   const startTime = Date.now();
 
-  console.log(`[API] ${method} ${endpoint}`, body ? `(payload: ${JSON.stringify(body).slice(0, 100)}...)` : '');
+  if (!import.meta.env.PROD) {
+    console.log(`[API] ${method} ${endpoint}`, body ? `(payload: ${JSON.stringify(body).slice(0, 100)}...)` : '');
+  }
 
   try {
     const response = await fetchWithRetry(url, {
@@ -136,12 +138,16 @@ async function callAPI<T>(
 
     const data = await response.json();
     const duration = Date.now() - startTime;
-    console.log(`[API✓] ${method} ${endpoint} (${duration}ms)`);
+    if (!import.meta.env.PROD) {
+      console.log(`[API✓] ${method} ${endpoint} (${duration}ms)`);
+    }
 
     return data as T;
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(`[API✗] ${method} ${endpoint} (${duration}ms):`, error);
+    if (!import.meta.env.PROD) {
+      console.error(`[API✗] ${method} ${endpoint} (${duration}ms):`, error);
+    }
     throw error;
   }
 }

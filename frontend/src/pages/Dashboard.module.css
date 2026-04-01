@@ -1,7 +1,5 @@
 /* Dashboard精密仪表板设计系统 */
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
-
 :root {
   /* 深色主题色系 */
   --color-bg-primary: #0f172a;

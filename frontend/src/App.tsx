@@ -1,25 +1,37 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import Dashboard from './pages/Dashboard'
-import Documents from './pages/Documents'
-import DataQuery from './pages/DataQuery'
-import SmartOps from './pages/SmartOps'
-import Diagnosis from './pages/Diagnosis'
-import Products from './pages/Products'
+import { Spin } from 'antd'
 import ChatPanel from './components/AGUI/ChatPanel'
+
+// Lazy load all pages for code splitting
+const Dashboard = React.lazy(() => import('./pages/Dashboard'))
+const Documents = React.lazy(() => import('./pages/Documents'))
+const DataQuery = React.lazy(() => import('./pages/DataQuery'))
+const SmartOps = React.lazy(() => import('./pages/SmartOps'))
+const Diagnosis = React.lazy(() => import('./pages/Diagnosis'))
+const Products = React.lazy(() => import('./pages/Products'))
+
+// Fallback loading component
+const PageLoader: React.FC = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+    <Spin tip="加载中..." />
+  </div>
+)
 
 const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/documents" element={<Documents />} />
-        <Route path="/query" element={<DataQuery />} />
-        <Route path="/operations" element={<SmartOps />} />
-        <Route path="/diagnosis" element={<Diagnosis />} />
-        <Route path="/products" element={<Products />} />
-      </Routes>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/documents" element={<Documents />} />
+          <Route path="/query" element={<DataQuery />} />
+          <Route path="/operations" element={<SmartOps />} />
+          <Route path="/diagnosis" element={<Diagnosis />} />
+          <Route path="/products" element={<Products />} />
+        </Routes>
+      </Suspense>
       <ChatPanel />
     </BrowserRouter>
   )

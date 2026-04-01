@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Input, Button, Card, Table, Empty, Space, Badge, Row, Col, Tag, Alert, message, Dropdown } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Input, Button, Card, Table, Empty, Space, Badge, Row, Col, Tag, Alert, message, Dropdown, Skeleton } from 'antd';
 import { SendOutlined, CopyOutlined, DownloadOutlined, FileExcelOutlined, FileTextOutlined } from '@ant-design/icons';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import AppLayout from '../components/Layout';
@@ -7,11 +7,18 @@ import styles from './DataQuery.module.css';
 import axios from 'axios';
 
 const DataQuery: React.FC = () => {
+  const [initialLoading, setInitialLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [generatedSql, setGeneratedSql] = useState('');
   const [chartType, setChartType] = useState('');
+
+  // Simulate initial loading
+  useEffect(() => {
+    const timer = setTimeout(() => setInitialLoading(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
 
 
 
@@ -115,6 +122,18 @@ const DataQuery: React.FC = () => {
       onClick: exportToJSON,
     },
   ];
+
+  // Loading skeleton
+  if (initialLoading) {
+    return (
+      <AppLayout currentMenu="query">
+        <div className={styles.pageContainer}>
+          <Skeleton active paragraph={{ rows: 2 }} />
+          <Skeleton active paragraph={{ rows: 4 }} style={{ marginTop: 24 }} />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout currentMenu="query">

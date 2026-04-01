@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Input, Button, Spin, Empty, Badge, Space, Divider, Tag, message } from 'antd';
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
+import { VariableSizeList as List } from 'react-window';
+import { Input, Button, Empty, Badge, Space, Divider, Tag, message, Alert } from 'antd';
 import { SendOutlined, CloseOutlined, CopyOutlined, LikeOutlined, DislikeOutlined, MessageOutlined } from '@ant-design/icons';
 import { chatWithKnowledge, type ChatResponse } from '../../services/api';
 import { useApiCall } from '../../hooks/useApiCall';
@@ -27,6 +28,89 @@ interface SuggestedQuestion {
   icon?: string;
 }
 
+// Message row component for virtualization - memoized for performance
+const MessageRow = memo<{ index: number; style: React.CSSProperties; messages: Message[]; onCopy: (text: string) => void }>(
+  ({ index, style, messages, onCopy }) => {
+    const msg = messages[index];
+
+    return (
+      <div style={style} className={`${styles.message} ${styles[msg.type]}`}>
+        {msg.type === 'assistant' && <div className={styles.avatar}>🤖</div>}
+
+        <div className={styles.messageContent}>
+          <p className={styles.text}>{msg.content}</p>
+          <p className={styles.timestamp} style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+            {msg.timestamp.toLocaleTimeString()}
+          </p>
+
+          {/* 置信度指示器 */}
+          {msg.confidence && (
+            <div className={styles.confidence}>
+              <span>置信度:</span>
+              <div className={styles.confidenceBar}>
+                <div className={styles.confidenceFill} style={{ width: `${msg.confidence * 100}%` }} />
+              </div>
+              <span className={styles.confidenceValue}>{(msg.confidence * 100).toFixed(0)}%</span>
+            </div>
+          )}
+
+          {/* 信息来源 */}
+          {msg.sources && msg.sources.length > 0 && (
+            <div className={styles.sources}>
+              <div className={styles.sourcesTitle}>📚 信息来源</div>
+              <div className={styles.sourcesList}>
+                {msg.sources.map((source, i) => (
+                  <Tag
+                    key={i}
+                    color="cyan"
+                    className={styles.sourceTag}
+                    onClick={() => onCopy(source.filename || source.title)}
+                  >
+                    <span>📄 {source.filename || source.title}</span>
+                    <span className={styles.relevance}>{source.relevance_percentage}</span>
+                  </Tag>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 操作按钮 */}
+          {msg.type === 'assistant' && (
+            <div className={styles.messageActions}>
+              <Button
+                type="text"
+                size="small"
+                icon={<CopyOutlined />}
+                onClick={() => onCopy(msg.content)}
+                className={styles.actionBtn}
+              />
+              <Button type="text" size="small" icon={<LikeOutlined />} className={styles.actionBtn} />
+              <Button type="text" size="small" icon={<DislikeOutlined />} className={styles.actionBtn} />
+            </div>
+          )}
+        </div>
+
+        {msg.type === 'user' && <div className={styles.avatar}>👤</div>}
+      </div>
+    );
+  },
+  // Custom comparison function - only re-render if this specific message changed
+  (prevProps, nextProps) => {
+    const prevMsg = prevProps.messages[prevProps.index];
+    const nextMsg = nextProps.messages[nextProps.index];
+    // Skip re-render if same message (by id and content)
+    return (
+      prevProps.index === nextProps.index &&
+      prevMsg?.id === nextMsg?.id &&
+      prevMsg?.content === nextMsg?.content &&
+      prevMsg?.confidence === nextMsg?.confidence &&
+      prevProps.onCopy === nextProps.onCopy
+    );
+  }
+);
+
+MessageRow.displayName = 'MessageRow';
+
 const ChatPanel: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -39,18 +123,30 @@ const ChatPanel: React.FC = () => {
   ]);
   const [input, setInput] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
   const [sessionId] = useState(() => {
-    // 生成会话ID，用于维持对话连贯性
     const stored = localStorage.getItem('chat_session_id');
     if (stored) return stored;
     const newId = `session_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     localStorage.setItem('chat_session_id', newId);
     return newId;
   });
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<List>(null);
+  // Use message ID as cache key instead of index
+  const itemSizeMap = useRef<Map<string, number>>(new Map());
 
-  // 使用 useApiCall Hook 管理 API 调用
-  const { execute: sendChat, loading: chatLoading } = useApiCall(chatWithKnowledge, {
+  // Clean up stale itemSizeMap entries when messages change
+  useEffect(() => {
+    const currentIds = new Set(messages.map(m => m.id));
+    const cachedIds = Array.from(itemSizeMap.current.keys());
+    for (const cachedId of cachedIds) {
+      if (!currentIds.has(cachedId)) {
+        itemSizeMap.current.delete(cachedId);
+      }
+    }
+  }, [messages]);
+
+  const { execute: sendChat, loading: chatLoading, retry: retryChat, canRetry } = useApiCall(chatWithKnowledge, {
     errorMessage: '知识问答失败，请重试',
     showMessage: true,
     onSuccess: (response: ChatResponse) => {
@@ -63,6 +159,7 @@ const ChatPanel: React.FC = () => {
         confidence: response.confidence || 0.8,
       };
       setMessages(prev => [...prev, assistantMessage]);
+      setLastError(null);
     },
   });
 
@@ -72,18 +169,46 @@ const ChatPanel: React.FC = () => {
     { id: '3', text: '如何提升转化率？', icon: '📈' },
   ];
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  // Memoize display messages to prevent unnecessary re-renders
+  const displayMessages = useMemo(
+    () => (chatLoading ? [...messages, { id: 'loading', type: 'assistant' as const, content: 'AI正在思考...', timestamp: new Date() }] : messages),
+    [messages, chatLoading]
+  );
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  // Estimate item height based on content
+  const getItemSize = useCallback((index: number) => {
+    const msg = displayMessages[index];
+    if (!msg) return 120;
+
+    // Use message ID as cache key for stable caching
+    const cachedSize = itemSizeMap.current.get(msg.id);
+    if (cachedSize) return cachedSize;
+
+    // Base height for message container
+    let estimatedHeight = 100;
+
+    // Add height for longer content
+    const contentLines = msg.content.split('\n').length;
+    estimatedHeight += Math.max(0, (contentLines - 1) * 20);
+
+    // Add height for sources if present
+    if (msg.sources && msg.sources.length > 0) {
+      estimatedHeight += 30 + (msg.sources.length * 25);
+    }
+
+    // Add height for confidence indicator
+    if (msg.confidence) {
+      estimatedHeight += 30;
+    }
+
+    const finalHeight = Math.min(estimatedHeight, 400); // Cap at 400px
+    itemSizeMap.current.set(msg.id, finalHeight);
+    return finalHeight;
+  }, [displayMessages]);
 
   const handleSendMessage = async (text: string = input) => {
     if (!text.trim()) return;
 
-    // 添加用户消息
     const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
@@ -95,11 +220,10 @@ const ChatPanel: React.FC = () => {
     setInput('');
 
     try {
-      // 调用真实 API
       await sendChat(text, sessionId, 5);
     } catch (error) {
-      // 错误已由 Hook 处理
       console.error('Chat error:', error);
+      setLastError('消息发送失败，请点击重试');
     }
   };
 
@@ -111,6 +235,18 @@ const ChatPanel: React.FC = () => {
     navigator.clipboard.writeText(text);
     message.success('已复制到剪贴板');
   };
+
+  // Auto-scroll to latest message
+  useEffect(() => {
+    if (listRef.current && messages.length > 0) {
+      // Scroll to the last item
+      setTimeout(() => {
+        if (listRef.current) {
+          listRef.current.scrollToItem(messages.length - 1, 'end');
+        }
+      }, 0);
+    }
+  }, [messages]);
 
   return (
     <div className={styles.chatPanelContainer}>
@@ -140,102 +276,45 @@ const ChatPanel: React.FC = () => {
             />
           </div>
 
-          {/* 消息列表 */}
+          {/* Error alert with retry */}
+          {lastError && canRetry && (
+            <Alert
+              type="error"
+              message={lastError}
+              showIcon
+              action={
+                <Button size="small" type="primary" onClick={() => {
+                  setLastError(null);
+                  retryChat();
+                }}>
+                  重试
+                </Button>
+              }
+              style={{ margin: '8px 0' }}
+            />
+          )}
+
+          {/* 虚拟化消息列表 */}
           <div className={styles.messageList}>
-            {messages.length === 0 ? (
+            {displayMessages.length === 0 ? (
               <Empty description="暂无对话记录" />
             ) : (
-              <>
-                {messages.map((msg) => (
-                  <div key={msg.id} className={`${styles.message} ${styles[msg.type]}`}>
-                    {msg.type === 'assistant' && (
-                      <div className={styles.avatar}>🤖</div>
-                    )}
-
-                    <div className={styles.messageContent}>
-                      <p className={styles.text}>{msg.content}</p>
-
-                      {/* 置信度指示器 */}
-                      {msg.confidence && (
-                        <div className={styles.confidence}>
-                          <span>置信度:</span>
-                          <div className={styles.confidenceBar}>
-                            <div
-                              className={styles.confidenceFill}
-                              style={{ width: `${msg.confidence * 100}%` }}
-                            />
-                          </div>
-                          <span className={styles.confidenceValue}>
-                            {(msg.confidence * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                      )}
-
-                      {/* 信息来源 */}
-                      {msg.sources && msg.sources.length > 0 && (
-                        <div className={styles.sources}>
-                          <div className={styles.sourcesTitle}>📚 信息来源</div>
-                          <div className={styles.sourcesList}>
-                            {msg.sources.map((source, i) => (
-                              <Tag
-                                key={i}
-                                color="cyan"
-                                className={styles.sourceTag}
-                                onClick={() => handleCopyMessage(source.filename || source.title)}
-                              >
-                                <span>📄 {source.filename || source.title}</span>
-                                <span className={styles.relevance}>
-                                  {source.relevance_percentage}
-                                </span>
-                              </Tag>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 操作按钮 */}
-                      {msg.type === 'assistant' && (
-                        <div className={styles.messageActions}>
-                          <Button
-                            type="text"
-                            size="small"
-                            icon={<CopyOutlined />}
-                            onClick={() => handleCopyMessage(msg.content)}
-                            className={styles.actionBtn}
-                          />
-                          <Button
-                            type="text"
-                            size="small"
-                            icon={<LikeOutlined />}
-                            className={styles.actionBtn}
-                          />
-                          <Button
-                            type="text"
-                            size="small"
-                            icon={<DislikeOutlined />}
-                            className={styles.actionBtn}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {msg.type === 'user' && (
-                      <div className={styles.avatar}>👤</div>
-                    )}
-                  </div>
-                ))}
-
-                {chatLoading && (
-                  <div className={`${styles.message} ${styles.assistant}`}>
-                    <div className={styles.avatar}>🤖</div>
-                    <div className={styles.messageContent}>
-                      <Spin size="small" tip="AI正在思考..." />
-                    </div>
-                  </div>
+              <List
+                ref={listRef}
+                height={400}
+                itemCount={displayMessages.length}
+                itemSize={getItemSize}
+                width="100%"
+              >
+                {({ index, style }: { index: number; style: React.CSSProperties }) => (
+                  <MessageRow
+                    index={index}
+                    style={style}
+                    messages={displayMessages}
+                    onCopy={handleCopyMessage}
+                  />
                 )}
-
-                <div ref={messagesEndRef} />
-              </>
+              </List>
             )}
           </div>
 
@@ -296,4 +375,3 @@ const ChatPanel: React.FC = () => {
 };
 
 export default ChatPanel;
-
