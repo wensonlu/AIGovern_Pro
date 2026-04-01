@@ -6,16 +6,7 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
-  plugins: [
-    react({
-      babel: {
-        plugins: [
-          ['import', { libraryName: 'antd', style: false }, 'antd'],
-          ['import', { libraryName: '@ant-design/icons', style: false }, '@ant-design/icons'],
-        ],
-      },
-    }),
-  ],
+  plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
