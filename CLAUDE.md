@@ -49,13 +49,13 @@ cd backend && python -m uvicorn app.main:app --reload  # Dev mode only
 
 Read before starting:
 
-| Topic                 | Location                             |
-| --------------------- | ------------------------------------ |
-| Design System         | `docs/DESIGN_SYSTEM.md`              |
-| Architecture          | `docs/TECH_ARCHITECTURE.md`          |
-| Frontend Setup        | `frontend/QUICKSTART.md`             |
-| Backend Setup         | `backend/QUICKSTART.md`              |
-| Chat Panel Integration| `CHATPANEL_INTEGRATION_GUIDE.md`     |
+| Topic                 | Location                                     |
+| --------------------- | -------------------------------------------- |
+| Design System         | `docs/DESIGN_SYSTEM.md`                      |
+| Architecture          | `docs/architecture/TECH_ARCHITECTURE.md`     |
+| Frontend Setup        | `frontend/QUICKSTART.md`                     |
+| Backend Setup         | `backend/QUICKSTART.md`                      |
+| Chat Panel Integration| `docs/guides/CHATPANEL_INTEGRATION_GUIDE.md` |
 
 ## Universal Rules
 
