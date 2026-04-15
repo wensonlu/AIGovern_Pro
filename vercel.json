@@ -1,28 +1,12 @@
 {
   "version": 2,
-  "name": "ai-govern-pro",
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/dist",
-  "framework": "vite",
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
-      "source": "/docs",
-      "destination": "/api/docs"
-    },
-    {
-      "source": "/openapi.json",
-      "destination": "/api/openapi.json"
-    },
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/$1"
-    }
+  "name": "ai-govern-pro-backend",
+  "buildCommand": "pip install -r backend/requirements.txt",
+  "outputDirectory": "backend",
+  "routes": [
+    { "src": "/(.*)", "dest": "/backend/api/index.py" }
   ],
   "env": {
-    "VITE_API_URL": "/api"
+    "PYTHONPATH": "/var/task/backend"
   }
 }
