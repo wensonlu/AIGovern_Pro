@@ -1,0 +1,46 @@
+{
+  "last_run": {
+    "run_id": "run_1776771619948",
+    "created_at": "2026-04-21T19:00:40.000Z",
+    "signals": [
+      "log_error",
+      "protocol_drift",
+      "repeated_tool_usage:exec"
+    ],
+    "outcome": {
+      "status": "completed",
+      "notes": "Solidify成功(0.86)，系统稳定无需修改代码；Evolver完全恢复(04-19重装)"
+    },
+    "selected_gene_id": "gene_gep_repair_from_errors",
+    "mutation_category": "repair"
+  },
+  "_last_run_prev": {
+    "run_id": "run_1776518400000",
+    "created_at": "2026-04-18T19:00:00.000Z",
+    "signals": [
+      "wrapper_cycle_failing",
+      "circuit_breaker_active",
+      "evolution_paused",
+      "gateway_exec_hanging"
+    ],
+    "outcome": {
+      "status": "completed",
+      "notes": "生成进化报告2026-04-18，Evolver进程未运行已5天，gateway cron/gateway status命令异常挂起，最高优先级：重启gateway服务"
+    }
+  },
+  "last_solidify": {
+    "run_id": "run_1776771619948",
+    "at": "2026-04-21T19:02:07.701Z",
+    "outcome": {
+      "status": "success",
+      "score": 0.86
+    }
+  },
+  "solidify_count": 14,
+  "last_validation_failure": {
+    "cmd": "node scripts/validate-modules.js ./src/gep/solidify ./src/gep/policyCheck ./src/gep/assetStore",
+    "stderr": "node:internal/modules/cjs/loader:1386\n  throw err;\n  ^\n\nError: Cannot find module '/root/.openclaw/workspace/scripts/validate-modules.js'\n    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)\n    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)\n    at Function._load (node:internal/modules/cjs/loader:1192:37)\n    at TracingChannel.traceSync (node:diagnostics_channel:328:14)\n    at wrapMo",
+    "retries_attempted": 2,
+    "at": "2026-04-03T04:41:48.618Z"
+  }
+}
