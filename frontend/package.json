@@ -15,8 +15,10 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.2.6",
+    "agent-skills-dashboard": "github:wensonlu/agent-skills-dashboard",
     "antd": "^5.11.0",
     "axios": "^1.6.2",
+    "d3": "^7.9.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.20.0",
@@ -25,6 +27,7 @@
     "web-vitals": "^4.2.1"
   },
   "devDependencies": {
+    "@types/d3": "^7.4.3",
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",

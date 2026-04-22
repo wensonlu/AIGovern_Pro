@@ -1,0 +1,198 @@
+.pageContainer {
+  min-height: 100vh;
+  padding: 24px;
+  background: #f4f7fb;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.pageTitle {
+  margin: 0 0 8px;
+  color: #111827;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.pageSubtitle {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.packageTag {
+  margin-top: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.metricsRow {
+  margin-bottom: 16px;
+}
+
+.metricCard {
+  border: 1px solid #e5edf5;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+}
+
+.workspaceGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+  align-items: start;
+}
+
+.graphCard,
+.controlCard,
+.trackerCard {
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.cardHeader h2 {
+  margin: 0 0 4px;
+  color: #111827;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.cardHeader p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.graphCanvas {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e5edf5;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.graphCanvas svg {
+  display: block;
+}
+
+.sidePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.recommendButton {
+  width: 100%;
+  height: auto;
+  min-height: 72px;
+  padding: 12px;
+  white-space: normal;
+  text-align: left;
+  border-radius: 8px;
+}
+
+.recommendButton strong,
+.recommendButton span {
+  display: block;
+}
+
+.recommendButton strong {
+  margin-bottom: 6px;
+  color: #111827;
+  font-size: 14px;
+}
+
+.recommendButton span {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.matchList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.matchList button {
+  min-height: 32px;
+  padding: 5px 10px;
+  color: #0f766e;
+  background: #ecfeff;
+  border: 1px solid #a5f3fc;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.matchList button:hover {
+  color: #155e75;
+  background: #cffafe;
+  border-color: #67e8f9;
+}
+
+.trackerCard {
+  margin-top: 16px;
+}
+
+.trackerCard :global(.project-tracker h2) {
+  margin: 0 0 12px;
+  color: #111827;
+  font-size: 18px;
+}
+
+.trackerCard :global(.phase-column) {
+  min-width: 150px;
+  border-radius: 8px;
+}
+
+.trackerCard :global(.skill-item) {
+  min-height: 34px;
+  border-radius: 6px;
+  line-height: 1.4;
+}
+
+@media (max-width: 1180px) {
+  .workspaceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .sidePanel {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .pageContainer {
+    padding: 16px;
+  }
+
+  .pageHeader {
+    flex-direction: column;
+  }
+
+  .sidePanel {
+    grid-template-columns: 1fr;
+  }
+}
