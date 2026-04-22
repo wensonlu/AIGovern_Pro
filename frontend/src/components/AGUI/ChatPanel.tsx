@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
-import { VariableSizeList as List } from 'react-window';
+/* eslint-disable react/prop-types */
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Input, Button, Empty, Badge, Space, Divider, Tag, message, Alert } from 'antd';
 import { SendOutlined, CloseOutlined, CopyOutlined, LikeOutlined, DislikeOutlined, MessageOutlined } from '@ant-design/icons';
-import { chatWithKnowledge, type ChatResponse } from '../../services/api';
-import { useApiCall } from '../../hooks/useApiCall';
+import { streamChatWithKnowledge, type SourceReference } from '../../services/api';
 import styles from './ChatPanel.module.css';
 
 interface Message {
@@ -11,14 +10,7 @@ interface Message {
   type: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  sources?: Array<{
-    document_id?: number | string;
-    title: string;
-    filename?: string;
-    relevance: number;
-    relevance_percentage: string;
-    text_preview?: string;
-  }>;
+  sources?: SourceReference[];
   confidence?: number;
 }
 
@@ -28,13 +20,11 @@ interface SuggestedQuestion {
   icon?: string;
 }
 
-// Message row component for virtualization - memoized for performance
-const MessageRow = memo<{ index: number; style: React.CSSProperties; messages: Message[]; onCopy: (text: string) => void }>(
-  ({ index, style, messages, onCopy }) => {
-    const msg = messages[index];
-
+// Memoized so typing in the input does not re-render stable message rows.
+const MessageRow = memo<{ message: Message; onCopy: (text: string) => void }>(
+  ({ message: msg, onCopy }) => {
     return (
-      <div style={style} className={`${styles.message} ${styles[msg.type]}`}>
+      <div className={`${styles.message} ${styles[msg.type]}`}>
         {msg.type === 'assistant' && <div className={styles.avatar}>🤖</div>}
 
         <div className={styles.messageContent}>
@@ -96,14 +86,14 @@ const MessageRow = memo<{ index: number; style: React.CSSProperties; messages: M
   },
   // Custom comparison function - only re-render if this specific message changed
   (prevProps, nextProps) => {
-    const prevMsg = prevProps.messages[prevProps.index];
-    const nextMsg = nextProps.messages[nextProps.index];
-    // Skip re-render if same message (by id and content)
+    const prevMsg = prevProps.message;
+    const nextMsg = nextProps.message;
+
     return (
-      prevProps.index === nextProps.index &&
       prevMsg?.id === nextMsg?.id &&
       prevMsg?.content === nextMsg?.content &&
       prevMsg?.confidence === nextMsg?.confidence &&
+      prevMsg?.sources === nextMsg?.sources &&
       prevProps.onCopy === nextProps.onCopy
     );
   }
@@ -123,6 +113,7 @@ const ChatPanel: React.FC = () => {
   ]);
   const [input, setInput] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
   const [sessionId] = useState(() => {
     const stored = localStorage.getItem('chat_session_id');
@@ -131,37 +122,13 @@ const ChatPanel: React.FC = () => {
     localStorage.setItem('chat_session_id', newId);
     return newId;
   });
-  const listRef = useRef<List>(null);
-  // Use message ID as cache key instead of index
-  const itemSizeMap = useRef<Map<string, number>>(new Map());
-
-  // Clean up stale itemSizeMap entries when messages change
-  useEffect(() => {
-    const currentIds = new Set(messages.map(m => m.id));
-    const cachedIds = Array.from(itemSizeMap.current.keys());
-    for (const cachedId of cachedIds) {
-      if (!currentIds.has(cachedId)) {
-        itemSizeMap.current.delete(cachedId);
-      }
-    }
-  }, [messages]);
-
-  const { execute: sendChat, loading: chatLoading, retry: retryChat, canRetry } = useApiCall(chatWithKnowledge, {
-    errorMessage: '知识问答失败，请重试',
-    showMessage: true,
-    onSuccess: (response: ChatResponse) => {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: response.answer || '无法获取回复',
-        timestamp: new Date(),
-        sources: response.sources || [],
-        confidence: response.confidence || 0.8,
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-      setLastError(null);
-    },
-  });
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastFailedTextRef = useRef<string | null>(null);
+  const pendingDeltaRef = useRef('');
+  const pendingSourcesRef = useRef<SourceReference[]>([]);
+  const pendingConfidenceRef = useRef<number | undefined>(undefined);
+  const pendingAssistantIdRef = useRef<string | null>(null);
+  const deltaFrameRef = useRef<number | null>(null);
 
   const suggestedQuestions: SuggestedQuestion[] = [
     { id: '1', text: '最近7天订单趋势如何？', icon: '📊' },
@@ -169,61 +136,114 @@ const ChatPanel: React.FC = () => {
     { id: '3', text: '如何提升转化率？', icon: '📈' },
   ];
 
-  // Memoize display messages to prevent unnecessary re-renders
-  const displayMessages = useMemo(
-    () => (chatLoading ? [...messages, { id: 'loading', type: 'assistant' as const, content: 'AI正在思考...', timestamp: new Date() }] : messages),
-    [messages, chatLoading]
-  );
+  const updateAssistantMessage = useCallback((id: string, updater: (message: Message) => Message) => {
+    setMessages(prev => prev.map(msg => (msg.id === id ? updater(msg) : msg)));
+  }, []);
 
-  // Estimate item height based on content
-  const getItemSize = useCallback((index: number) => {
-    const msg = displayMessages[index];
-    if (!msg) return 120;
+  const flushPendingDelta = useCallback(() => {
+    const content = pendingDeltaRef.current;
+    const assistantId = pendingAssistantIdRef.current;
+    pendingDeltaRef.current = '';
+    deltaFrameRef.current = null;
 
-    // Use message ID as cache key for stable caching
-    const cachedSize = itemSizeMap.current.get(msg.id);
-    if (cachedSize) return cachedSize;
+    if (!content || !assistantId) return;
 
-    // Base height for message container
-    let estimatedHeight = 100;
+    updateAssistantMessage(assistantId, msg => ({
+      ...msg,
+      content: msg.content === '正在检索知识库...' ? content : `${msg.content}${content}`,
+    }));
+  }, [updateAssistantMessage]);
 
-    // Add height for longer content
-    const contentLines = msg.content.split('\n').length;
-    estimatedHeight += Math.max(0, (contentLines - 1) * 20);
+  const appendAssistantDelta = useCallback((assistantId: string, content: string) => {
+    pendingAssistantIdRef.current = assistantId;
+    pendingDeltaRef.current += content;
 
-    // Add height for sources if present
-    if (msg.sources && msg.sources.length > 0) {
-      estimatedHeight += 30 + (msg.sources.length * 25);
-    }
+    if (deltaFrameRef.current !== null) return;
 
-    // Add height for confidence indicator
-    if (msg.confidence) {
-      estimatedHeight += 30;
-    }
+    deltaFrameRef.current = window.requestAnimationFrame(flushPendingDelta);
+  }, [flushPendingDelta]);
 
-    const finalHeight = Math.min(estimatedHeight, 400); // Cap at 400px
-    itemSizeMap.current.set(msg.id, finalHeight);
-    return finalHeight;
-  }, [displayMessages]);
+  useEffect(() => {
+    return () => {
+      if (deltaFrameRef.current !== null) {
+        window.cancelAnimationFrame(deltaFrameRef.current);
+      }
+    };
+  }, []);
 
   const handleSendMessage = async (text: string = input) => {
-    if (!text.trim()) return;
+    const question = text.trim();
+    if (!question || isStreaming) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
-      content: text,
+      content: question,
       timestamp: new Date(),
     };
+    const assistantMessageId = `${Date.now()}_assistant`;
+    const assistantMessage: Message = {
+      id: assistantMessageId,
+      type: 'assistant',
+      content: '正在检索知识库...',
+      timestamp: new Date(),
+      sources: [],
+    };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMessage, assistantMessage]);
     setInput('');
+    setIsStreaming(true);
+    setLastError(null);
+    lastFailedTextRef.current = null;
+    pendingDeltaRef.current = '';
+    pendingSourcesRef.current = [];
+    pendingConfidenceRef.current = undefined;
+    pendingAssistantIdRef.current = assistantMessageId;
+    if (deltaFrameRef.current !== null) {
+      window.cancelAnimationFrame(deltaFrameRef.current);
+      deltaFrameRef.current = null;
+    }
 
     try {
-      await sendChat(text, sessionId, 5);
+      const response = await streamChatWithKnowledge(question, sessionId, 5, {
+        onSources: event => {
+          pendingSourcesRef.current = event.sources || [];
+          pendingConfidenceRef.current = event.confidence;
+        },
+        onDelta: content => {
+          appendAssistantDelta(assistantMessageId, content);
+        },
+        onDone: event => {
+          flushPendingDelta();
+          updateAssistantMessage(assistantMessageId, msg => ({
+            ...msg,
+            sources: pendingSourcesRef.current,
+            confidence: event.confidence ?? pendingConfidenceRef.current ?? msg.confidence,
+          }));
+          pendingSourcesRef.current = [];
+          pendingConfidenceRef.current = undefined;
+        },
+      });
+
+      flushPendingDelta();
+      updateAssistantMessage(assistantMessageId, msg => ({
+        ...msg,
+        sources: response.sources?.length ? response.sources : msg.sources,
+        confidence: response.confidence ?? msg.confidence,
+      }));
     } catch (error) {
       console.error('Chat error:', error);
+      flushPendingDelta();
+      lastFailedTextRef.current = question;
       setLastError('消息发送失败，请点击重试');
+      updateAssistantMessage(assistantMessageId, msg => ({
+        ...msg,
+        content: msg.content === '正在检索知识库...' ? '消息发送失败，请稍后重试。' : msg.content,
+        confidence: 0,
+      }));
+      message.error('知识问答失败，请重试');
+    } finally {
+      setIsStreaming(false);
     }
   };
 
@@ -231,21 +251,14 @@ const ChatPanel: React.FC = () => {
     handleSendMessage(question);
   };
 
-  const handleCopyMessage = (text: string) => {
+  const handleCopyMessage = useCallback((text: string) => {
     navigator.clipboard.writeText(text);
     message.success('已复制到剪贴板');
-  };
+  }, []);
 
   // Auto-scroll to latest message
   useEffect(() => {
-    if (listRef.current && messages.length > 0) {
-      // Scroll to the last item
-      setTimeout(() => {
-        if (listRef.current) {
-          listRef.current.scrollToItem(messages.length - 1, 'end');
-        }
-      }, 0);
-    }
+    messagesEndRef.current?.scrollIntoView({ block: 'end' });
   }, [messages]);
 
   return (
@@ -277,7 +290,7 @@ const ChatPanel: React.FC = () => {
           </div>
 
           {/* Error alert with retry */}
-          {lastError && canRetry && (
+          {lastError && lastFailedTextRef.current && (
             <Alert
               type="error"
               message={lastError}
@@ -285,7 +298,7 @@ const ChatPanel: React.FC = () => {
               action={
                 <Button size="small" type="primary" onClick={() => {
                   setLastError(null);
-                  retryChat();
+                  handleSendMessage(lastFailedTextRef.current || '');
                 }}>
                   重试
                 </Button>
@@ -294,32 +307,26 @@ const ChatPanel: React.FC = () => {
             />
           )}
 
-          {/* 虚拟化消息列表 */}
+          {/* 消息列表 */}
           <div className={styles.messageList}>
-            {displayMessages.length === 0 ? (
+            {messages.length === 0 ? (
               <Empty description="暂无对话记录" />
             ) : (
-              <List
-                ref={listRef}
-                height={400}
-                itemCount={displayMessages.length}
-                itemSize={getItemSize}
-                width="100%"
-              >
-                {({ index, style }: { index: number; style: React.CSSProperties }) => (
+              <>
+                {messages.map(msg => (
                   <MessageRow
-                    index={index}
-                    style={style}
-                    messages={displayMessages}
+                    key={msg.id}
+                    message={msg}
                     onCopy={handleCopyMessage}
                   />
-                )}
-              </List>
+                ))}
+                <div ref={messagesEndRef} />
+              </>
             )}
           </div>
 
           {/* 推荐问题（当没有消息或开始时显示） */}
-          {messages.length <= 1 && !chatLoading && (
+          {messages.length <= 1 && !isStreaming && (
             <div className={styles.suggestedQuestions}>
               <p className={styles.suggestedTitle}>建议提问</p>
               <Space direction="vertical" style={{ width: '100%' }}>
@@ -355,15 +362,15 @@ const ChatPanel: React.FC = () => {
               }}
               rows={3}
               className={styles.textarea}
-              disabled={chatLoading}
+              disabled={isStreaming}
             />
             <Button
               type="primary"
               icon={<SendOutlined />}
-              loading={chatLoading}
+              loading={isStreaming}
               onClick={() => handleSendMessage()}
               className={styles.sendBtn}
-              disabled={!input.trim() || chatLoading}
+              disabled={!input.trim() || isStreaming}
             >
               发送
             </Button>

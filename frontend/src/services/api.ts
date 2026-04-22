@@ -26,6 +26,34 @@ export interface ChatResponse {
   timestamp?: string;
 }
 
+export type ChatStreamEvent =
+  | {
+      type: 'sources';
+      sources: SourceReference[];
+      confidence: number;
+      session_id?: string;
+    }
+  | {
+      type: 'delta';
+      content: string;
+    }
+  | {
+      type: 'done';
+      confidence: number;
+      session_id?: string;
+      timestamp?: string;
+    }
+  | {
+      type: 'error';
+      message: string;
+    };
+
+export interface ChatStreamHandlers {
+  onSources?: (event: Extract<ChatStreamEvent, { type: 'sources' }>) => void;
+  onDelta?: (content: string) => void;
+  onDone?: (event: Extract<ChatStreamEvent, { type: 'done' }>) => void;
+}
+
 export interface QueryResponse {
   sql: string;
   result: Array<Record<string, any>>;
@@ -65,10 +93,9 @@ export interface AnalysisResponse {
 }
 
 // API 基础地址
-// 生产环境使用相对路径（同域部署），开发环境使用 localhost
-const API_BASE_URL = import.meta.env.PROD 
-  ? (import.meta.env.VITE_API_URL || '')  // 生产环境：空字符串表示相对路径
-  : (import.meta.env.VITE_API_URL || 'http://localhost:8000');  // 开发环境
+// 默认走同源相对路径，开发环境交给 Vite proxy 转发，避免浏览器跨域。
+// 如确需直连后端，可通过 VITE_API_URL 显式覆盖。
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 const API_TIMEOUT = import.meta.env.VITE_API_TIMEOUT || 30000;
 const MAX_RETRIES = 3;
 
@@ -170,6 +197,92 @@ export async function chatWithKnowledge(
   });
 }
 
+// 知识问答流式 API
+export async function streamChatWithKnowledge(
+  question: string,
+  sessionId: string = 'default',
+  topK: number = 5,
+  handlers: ChatStreamHandlers = {}
+): Promise<ChatResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      question,
+      session_id: sessionId,
+      top_k: topK,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  if (!response.body) {
+    throw new Error('浏览器不支持流式响应');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let answer = '';
+  let sources: SourceReference[] = [];
+  let confidence = 0;
+  let timestamp: string | undefined;
+
+  const consumeLine = (line: string) => {
+    if (!line.trim()) return;
+
+    const event = JSON.parse(line) as ChatStreamEvent;
+    if (event.type === 'sources') {
+      sources = event.sources || [];
+      confidence = event.confidence || 0;
+      handlers.onSources?.(event);
+      return;
+    }
+
+    if (event.type === 'delta') {
+      answer += event.content;
+      handlers.onDelta?.(event.content);
+      return;
+    }
+
+    if (event.type === 'done') {
+      confidence = event.confidence ?? confidence;
+      timestamp = event.timestamp;
+      handlers.onDone?.(event);
+      return;
+    }
+
+    throw new Error(event.message || '流式对话失败');
+  };
+
+  let isReading = true;
+  while (isReading) {
+    const { done, value } = await reader.read();
+    if (done) {
+      isReading = false;
+      continue;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    lines.forEach(consumeLine);
+  }
+
+  buffer += decoder.decode();
+  consumeLine(buffer);
+
+  return {
+    answer,
+    sources,
+    confidence,
+    session_id: sessionId,
+    timestamp,
+  };
+}
+
 // 数据查询 API
 export async function queryData(naturalLanguageQuery: string): Promise<QueryResponse> {
   return callAPI<QueryResponse>('/api/query', 'POST', {
@@ -211,6 +324,7 @@ export async function analyzeDiagnosisMetric(metricName: string): Promise<Analys
 export default {
   checkHealth,
   chatWithKnowledge,
+  streamChatWithKnowledge,
   queryData,
   getOperationTemplates,
   executeOperation,

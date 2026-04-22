@@ -1,4 +1,7 @@
+import json
+
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.schemas import ChatRequest, ChatResponse
@@ -23,6 +26,42 @@ async def process_chat(
     )
 
     return response
+
+
+@router.post("/stream")
+async def process_chat_stream(
+    request: ChatRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    流式处理用户对话请求。
+    返回 NDJSON：sources/delta/done/error 事件，每行一个 JSON 对象。
+    """
+
+    async def event_stream():
+        try:
+            async for event in agent_service.process_message_stream(
+                message=request.question,
+                db=db,
+                session_id=request.session_id,
+                top_k=request.top_k,
+            ):
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+        except Exception as e:
+            error_event = {
+                "type": "error",
+                "message": f"对话处理失败：{e}",
+            }
+            yield json.dumps(error_event, ensure_ascii=False) + "\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="application/x-ndjson",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/history/{session_id}")

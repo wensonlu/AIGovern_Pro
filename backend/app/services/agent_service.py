@@ -3,7 +3,7 @@
 支持：知识问答(RAG)、数据查询(SQL)、智能操作(Operation)、经营诊断(Diagnosis)
 """
 
-from typing import Optional, Literal
+from typing import Any, AsyncIterator, Optional, Literal
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.core.llm import llm_client
@@ -47,6 +47,46 @@ class AgentService:
             return await self._handle_business_diagnosis(message, db, session_id)
         else:  # knowledge_qa
             return await self._handle_knowledge_qa(message, session_id)
+
+    async def process_message_stream(
+        self,
+        message: str,
+        db: Session,
+        session_id: Optional[str] = None,
+        top_k: int = 5,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """
+        流式处理用户消息。
+        knowledge_qa 走真正的 LLM token 流；其他意图保持同一协议一次性返回。
+        """
+        intent = await self._recognize_intent(message)
+        print(f"🎯 识别到的意图: {intent}")
+
+        if intent == "knowledge_qa":
+            async for event in self.rag.process_query_stream(message, session_id, top_k):
+                yield event
+            return
+
+        if intent == "data_query":
+            response = await self._handle_data_query(message, db, session_id)
+        elif intent == "smart_operation":
+            response = await self._handle_smart_operation(message, db, session_id)
+        else:
+            response = await self._handle_business_diagnosis(message, db, session_id)
+
+        yield {
+            "type": "sources",
+            "sources": [source.model_dump(mode="json") for source in response.sources],
+            "confidence": response.confidence,
+            "session_id": response.session_id,
+        }
+        yield {"type": "delta", "content": response.answer}
+        yield {
+            "type": "done",
+            "confidence": response.confidence,
+            "session_id": response.session_id,
+            "timestamp": response.timestamp.isoformat(),
+        }
 
     async def _recognize_intent(
         self, message: str

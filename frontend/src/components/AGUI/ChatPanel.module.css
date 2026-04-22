@@ -56,6 +56,7 @@
   bottom: 24px;
   right: 24px;
   width: 420px;
+  height: min(600px, calc(100vh - 48px));
   max-height: 600px;
   background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
   border: 1px solid rgba(0, 217, 255, 0.2);
@@ -104,6 +105,7 @@
 
 .messageList {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -130,6 +132,7 @@
 
 .message {
   display: flex;
+  align-items: flex-start;
   gap: 12px;
   animation: fadeInUp 0.3s ease;
 
@@ -173,6 +176,8 @@
 
 .messageContent {
   flex: 1;
+  min-width: 0;
+  max-width: calc(100% - 44px);
   padding: 12px;
   border-radius: 8px;
   display: flex;
@@ -186,6 +191,7 @@
   color: #f1f5f9;
   margin: 0;
   word-break: break-word;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
@@ -242,9 +248,20 @@
 }
 
 .sourceTag {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
   font-size: 11px;
   cursor: pointer;
   transition: all 0.2s ease;
+
+  span:first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   &:hover {
     opacity: 0.8;
@@ -442,6 +459,7 @@
 
   .chatPanel {
     width: calc(100vw - 32px);
+    height: calc(100vh - 100px);
     max-height: calc(100vh - 100px);
     bottom: 16px;
     right: 16px;

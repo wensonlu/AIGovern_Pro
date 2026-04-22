@@ -33,6 +33,8 @@ class Settings:
     llm_api_key: str = os.getenv("LLM_API_KEY", "")
     llm_model_name: str = os.getenv("LLM_MODEL_NAME", "doubao-pro")
     llm_api_base: str = os.getenv("LLM_API_BASE", "https://ark.cn-beijing.volces.com/api/v3")
+    anthropic_base_url: str = os.getenv("ANTHROPIC_BASE_URL", llm_api_base)
+    anthropic_auth_token: str = os.getenv("ANTHROPIC_AUTH_TOKEN", llm_api_key)
 
     # Embedding 配置（可独立配置，若不配置则使用 LLM 配置）
     embedding_provider: str = os.getenv("EMBEDDING_PROVIDER", os.getenv("LLM_PROVIDER", "doubao"))

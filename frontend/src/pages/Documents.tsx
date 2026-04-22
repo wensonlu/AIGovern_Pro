@@ -8,7 +8,7 @@ import styles from './Documents.module.css';
 const { TextArea } = Input;
 
 // API 配置
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
 interface DocumentItem {
   id: string;

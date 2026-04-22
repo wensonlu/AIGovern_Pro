@@ -1,7 +1,7 @@
-from typing import Optional
+from typing import Any, AsyncIterator, Optional
 from sqlalchemy import text, select
 from sqlalchemy.orm import Session
-from app.core.llm import llm_client
+from app.core.llm import llm_client, LLMServiceError, LLMTimeoutError
 from app.models.schemas import ChatResponse, SourceReference
 from app.core.database import SessionLocal
 from datetime import datetime
@@ -80,13 +80,93 @@ class RAGService:
     ) -> tuple[str, list[SourceReference], float]:
         """基于检索文档生成回答"""
 
-        # 构建上下文
+        prompt = self._build_answer_prompt(question, retrieved_docs, top_k)
+
+        # 生成回答。外部 LLM 超时或网络异常不能让 /api/chat 返回 500。
+        try:
+            answer = await self.llm.generate_text(prompt, max_tokens=1024)
+        except LLMTimeoutError:
+            if retrieved_docs:
+                answer = (
+                    "已检索到相关知识库内容，但大模型服务响应超时，暂时无法生成完整回答。"
+                    "请稍后重试，或缩短问题范围后再试。"
+                )
+            else:
+                answer = (
+                    "知识库中没有找到相关文档，且大模型服务响应超时，暂时无法生成通用回答。"
+                    "请稍后重试。"
+                )
+        except LLMServiceError as e:
+            if retrieved_docs:
+                answer = (
+                    "已检索到相关知识库内容，但大模型服务当前不可用，暂时无法生成完整回答。"
+                    f"错误信息：{e}"
+                )
+            else:
+                answer = (
+                    "知识库中没有找到相关文档，且大模型服务当前不可用。"
+                    f"错误信息：{e}"
+                )
+
+        sources = self._build_sources(retrieved_docs, top_k)
+        confidence = self._calculate_confidence(retrieved_docs, top_k)
+
+        return answer, sources, confidence
+
+    async def process_query_stream(
+        self, question: str, session_id: Optional[str] = None, top_k: int = 5
+    ) -> AsyncIterator[dict[str, Any]]:
+        """处理完整的流式知识问答查询"""
+        retrieved_docs = await self.retrieve_documents(question, top_k)
+        sources = self._build_sources(retrieved_docs, top_k)
+        confidence = self._calculate_confidence(retrieved_docs, top_k)
+
+        yield {
+            "type": "sources",
+            "sources": [source.model_dump(mode="json") for source in sources],
+            "confidence": confidence,
+            "session_id": session_id or "default",
+        }
+
+        prompt = self._build_answer_prompt(question, retrieved_docs, top_k)
+
+        try:
+            async for chunk in self.llm.stream_text(prompt, max_tokens=1024):
+                yield {"type": "delta", "content": chunk}
+        except LLMTimeoutError:
+            content = (
+                "已检索到相关知识库内容，但大模型服务响应超时，暂时无法生成完整回答。"
+                "请稍后重试，或缩短问题范围后再试。"
+                if retrieved_docs
+                else "知识库中没有找到相关文档，且大模型服务响应超时，暂时无法生成通用回答。请稍后重试。"
+            )
+            yield {"type": "delta", "content": content}
+        except LLMServiceError as e:
+            content = (
+                "已检索到相关知识库内容，但大模型服务当前不可用，暂时无法生成完整回答。"
+                f"错误信息：{e}"
+                if retrieved_docs
+                else f"知识库中没有找到相关文档，且大模型服务当前不可用。错误信息：{e}"
+            )
+            yield {"type": "delta", "content": content}
+
+        yield {
+            "type": "done",
+            "confidence": confidence,
+            "session_id": session_id or "default",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    def _build_answer_prompt(
+        self, question: str, retrieved_docs: list[dict], top_k: int
+    ) -> str:
+        """构建知识问答提示词"""
         context = "\n\n".join(
             [f"文档 {i+1}: {doc['text']}" for i, doc in enumerate(retrieved_docs[:top_k])]
         )
 
         if retrieved_docs:
-            prompt = f"""请基于以下文档回答问题。
+            return f"""请基于以下文档回答问题。
 
 文档内容：
 {context}
@@ -98,8 +178,8 @@ class RAGService:
 2. 标注引用的文档位置
 3. 如果文档中没有完全相关的信息，请说明
 """
-        else:
-            prompt = f"""知识库中没有匹配的内容。请基于您的一般知识回答以下问题：
+
+        return f"""知识库中没有匹配的内容。请基于您的一般知识回答以下问题：
 
 问题：{question}
 
@@ -109,10 +189,10 @@ class RAGService:
 3. 如果不确定，请说明
 """
 
-        # 生成回答
-        answer = await self.llm.generate_text(prompt, max_tokens=1024)
-
-        # 构建信息源引用
+    def _build_sources(
+        self, retrieved_docs: list[dict], top_k: int
+    ) -> list[SourceReference]:
+        """构建信息源引用"""
         sources = []
         for i, doc in enumerate(retrieved_docs[:top_k]):
             relevance = doc.get("relevance", 0.0)
@@ -131,15 +211,15 @@ class RAGService:
                 )
             )
 
-        # 计算置信度（基于文档相关性的平均值）
+        return sources
+
+    def _calculate_confidence(self, retrieved_docs: list[dict], top_k: int) -> float:
+        """计算置信度（基于文档相关性的平均值）"""
         if retrieved_docs:
-            confidence = sum(doc.get("relevance", 0) for doc in retrieved_docs[:top_k]) / max(
+            return sum(doc.get("relevance", 0) for doc in retrieved_docs[:top_k]) / max(
                 len(retrieved_docs[:top_k]), 1
             )
-        else:
-            confidence = 0.0
-
-        return answer, sources, confidence
+        return 0.0
 
     async def process_query(
         self, question: str, session_id: Optional[str] = None, top_k: int = 5
