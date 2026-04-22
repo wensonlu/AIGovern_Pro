@@ -30,10 +30,12 @@ const SmartOps: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<OperationTemplate | null>(null);
   const [form] = Form.useForm();
 
+  const API_BASE = import.meta.env.VITE_API_URL || '';
+
   // 获取操作模板
   const fetchTemplates = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/operations/templates');
+      const response = await axios.get(`${API_BASE}/api/operations/templates`);
       setTemplates(response.data);
     } catch (error: any) {
       message.error('获取操作模板失败: ' + (error.response?.data?.detail || error.message));
@@ -43,7 +45,7 @@ const SmartOps: React.FC = () => {
   // 获取操作日志
   const fetchLogs = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/operations/logs');
+      const response = await axios.get(`${API_BASE}/api/operations/logs`);
       const logs = response.data.items.map((log: any) => ({
         id: String(log.id),
         type: log.operation_type,
@@ -70,7 +72,7 @@ const SmartOps: React.FC = () => {
     setLoadingIds(prev => new Set(prev).add(template.id));
 
     try {
-      const response = await axios.post('http://localhost:8000/api/operations/execute', {
+      const response = await axios.post(`${API_BASE}/api/operations/execute`, {
         operation_type: template.operation_type,
         parameters: {}, // 使用默认参数
       });

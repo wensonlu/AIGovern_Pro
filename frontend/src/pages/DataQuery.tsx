@@ -26,9 +26,11 @@ const DataQuery: React.FC = () => {
     if (!query.trim()) return;
     setLoading(true);
 
+    const API_BASE = import.meta.env.VITE_API_URL || '';
+
     try {
       // 调用后端真实 API
-      const response = await axios.post('http://localhost:8000/api/query', {
+      const response = await axios.post(`${API_BASE}/api/query`, {
         natural_language_query: query,
         context: {},
       });

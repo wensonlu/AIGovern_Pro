@@ -8,15 +8,33 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@components': path.resolve(__dirname, './src/components'),
-      '@pages': path.resolve(__dirname, './src/pages'),
-      '@hooks': path.resolve(__dirname, './src/hooks'),
-      '@services': path.resolve(__dirname, './src/services'),
-      '@utils': path.resolve(__dirname, './src/utils'),
-      '@types': path.resolve(__dirname, './src/types'),
-    },
+    alias: [
+      {
+        find: '@agent-skills-dashboard/react/styles',
+        replacement: path.resolve(
+          __dirname,
+          './node_modules/agent-skills-dashboard/packages/react/src/styles.css'
+        ),
+      },
+      {
+        find: '@agent-skills-dashboard/react',
+        replacement: path.resolve(
+          __dirname,
+          './node_modules/agent-skills-dashboard/packages/react/src/index.ts'
+        ),
+      },
+      {
+        find: '@agent-skills-dashboard/core',
+        replacement: path.resolve(__dirname, './src/lib/agentSkillsCore.ts'),
+      },
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+      { find: '@components', replacement: path.resolve(__dirname, './src/components') },
+      { find: '@pages', replacement: path.resolve(__dirname, './src/pages') },
+      { find: '@hooks', replacement: path.resolve(__dirname, './src/hooks') },
+      { find: '@services', replacement: path.resolve(__dirname, './src/services') },
+      { find: '@utils', replacement: path.resolve(__dirname, './src/utils') },
+      { find: '@types', replacement: path.resolve(__dirname, './src/types') },
+    ],
   },
   server: {
     port: 3000,

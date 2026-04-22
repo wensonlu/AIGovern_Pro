@@ -25,6 +25,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, currentMenu = 'dashboar
       operations: '/operations',
       diagnosis: '/diagnosis',
       products: '/products',
+      skills: '/skills',
     };
     navigate(routes[key]);
   };
@@ -60,6 +61,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, currentMenu = 'dashboar
       </Menu.Item>
       <Menu.Item key="products" className={styles.menuItem}>
         🛍️ 商品管理
+      </Menu.Item>
+      <Menu.Item key="skills" className={styles.menuItem}>
+        🧭 Agent Skills
       </Menu.Item>
     </Menu>
   );

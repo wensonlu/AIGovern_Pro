@@ -29,7 +29,16 @@
       "@hooks/*": ["src/hooks/*"],
       "@services/*": ["src/services/*"],
       "@utils/*": ["src/utils/*"],
-      "@types/*": ["src/types/*"]
+      "@types/*": ["src/types/*"],
+      "@agent-skills-dashboard/core": [
+        "src/lib/agentSkillsCore.ts"
+      ],
+      "@agent-skills-dashboard/react": [
+        "node_modules/agent-skills-dashboard/packages/react/src/index.ts"
+      ],
+      "@agent-skills-dashboard/react/styles": [
+        "node_modules/agent-skills-dashboard/packages/react/src/styles.css"
+      ]
     }
   },
   "include": ["src"],

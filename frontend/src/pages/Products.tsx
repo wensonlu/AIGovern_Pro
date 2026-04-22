@@ -37,10 +37,12 @@ const Products: React.FC = () => {
   const [form] = Form.useForm();
 
   // 获取商品列表
+  const API_BASE = import.meta.env.VITE_API_URL || '';
+
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('http://localhost:8000/api/products');
+      const response = await axios.get(`${API_BASE}/api/products`);
       setProducts(response.data);
     } catch (error: any) {
       message.error('获取商品列表失败: ' + (error.response?.data?.detail || error.message));
@@ -52,7 +54,7 @@ const Products: React.FC = () => {
   // 获取价格修改历史
   const fetchPriceHistory = async (productId: number) => {
     try {
-      const response = await axios.get(`http://localhost:8000/api/products/${productId}/price-history`);
+      const response = await axios.get(`${API_BASE}/api/products/${productId}/price-history`);
       setPriceHistory(response.data);
     } catch (error: any) {
       message.error('获取价格历史失败: ' + (error.response?.data?.detail || error.message));
@@ -88,7 +90,7 @@ const Products: React.FC = () => {
     if (!selectedProduct) return;
 
     try {
-      await axios.put(`http://localhost:8000/api/products/${selectedProduct.id}`, values);
+      await axios.put(`${API_BASE}/api/products/${selectedProduct.id}`, values);
       message.success('商品更新成功');
       setEditModalVisible(false);
       fetchProducts(); // 刷新列表
