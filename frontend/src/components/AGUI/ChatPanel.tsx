@@ -9,6 +9,7 @@ interface Message {
   id: string;
   type: 'user' | 'assistant';
   content: string;
+  content_type?: 'text' | 'markdown' | 'html' | 'json';
   timestamp: Date;
   sources?: SourceReference[];
   confidence?: number;
@@ -107,6 +108,7 @@ const ChatPanel: React.FC = () => {
       id: '1',
       type: 'assistant',
       content: '你好！我是AIGovern智能助手，可以帮助你解答企业经营中的各种问题。如：\n• 查询企业知识库\n• 分析业务数据\n• 获取操作指导\n• 经营决策建议',
+      content_type: 'text',
       timestamp: new Date(),
       sources: [],
     },
