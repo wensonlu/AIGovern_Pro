@@ -28,6 +28,10 @@ export interface ChatResponse {
 
 export type ChatStreamEvent =
   | {
+      type: 'format';
+      content_type: 'text' | 'markdown' | 'html' | 'json';
+    }
+  | {
       type: 'sources';
       sources: SourceReference[];
       confidence: number;
@@ -234,6 +238,12 @@ export async function streamChatWithKnowledge(
     if (!line.trim()) return;
 
     const event = JSON.parse(line) as ChatStreamEvent;
+
+    if (event.type === 'format') {
+      // 格式事件 - 前端可根据content_type选择渲染器
+      return;
+    }
+
     if (event.type === 'sources') {
       sources = event.sources || [];
       confidence = event.confidence || 0;
@@ -254,7 +264,9 @@ export async function streamChatWithKnowledge(
       return;
     }
 
-    throw new Error(event.message || '流式对话失败');
+    if (event.type === 'error') {
+      throw new Error(event.message);
+    }
   };
 
   let isReading = true;
