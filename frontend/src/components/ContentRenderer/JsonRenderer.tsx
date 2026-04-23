@@ -44,7 +44,7 @@ const JsonRenderer: React.FC<ContentRendererProps> = ({ content, className }) =>
     }
 
     if (typeof value === 'string') {
-      return <span style={{ color: '#d32f2f' }}>"{value}"</span>;
+      return <span style={{ color: '#d32f2f' }}>&quot;{value}&quot;</span>;
     }
 
     if (Array.isArray(value)) {
@@ -73,7 +73,7 @@ const JsonRenderer: React.FC<ContentRendererProps> = ({ content, className }) =>
           </div>
           {isExpanded && entries.map(([key, val]) => (
             <div key={key} style={{ paddingLeft: `${indent + 16}px` }}>
-              <span style={{ color: '#1976d2' }}>"{key}":</span> {renderValue(val, `${path}.${key}`, depth + 1)}
+              <span style={{ color: '#1976d2' }}>&quot;{key}&quot;:</span> {renderValue(val, `${path}.${key}`, depth + 1)}
             </div>
           ))}
         </div>
