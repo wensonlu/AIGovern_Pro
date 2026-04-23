@@ -15,7 +15,7 @@ const MarkdownRenderer: React.FC<ContentRendererProps> = ({ content, className }
           ul: ({ node, ...props }) => <ul style={{ marginLeft: '20px', margin: '8px 0' }} {...props} />,
           ol: ({ node, ...props }) => <ol style={{ marginLeft: '20px', margin: '8px 0' }} {...props} />,
           li: ({ node, ...props }) => <li style={{ margin: '4px 0' }} {...props} />,
-          code: ({ node, inline, ...props }) =>
+          code: ({ node, inline, ...props }: any) =>
             inline ? (
               <code style={{ backgroundColor: '#f0f0f0', padding: '2px 6px', borderRadius: '3px', fontFamily: 'monospace' }} {...props} />
             ) : (
