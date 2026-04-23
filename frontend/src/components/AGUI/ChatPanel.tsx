@@ -93,6 +93,7 @@ const MessageRow = memo<{ message: Message; onCopy: (text: string) => void }>(
     return (
       prevMsg?.id === nextMsg?.id &&
       prevMsg?.content === nextMsg?.content &&
+      prevMsg?.content_type === nextMsg?.content_type &&
       prevMsg?.confidence === nextMsg?.confidence &&
       prevMsg?.sources === nextMsg?.sources &&
       prevProps.onCopy === nextProps.onCopy
