@@ -21,9 +21,11 @@
     "d3": "^7.9.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^6.20.0",
     "react-window": "^1.8.10",
     "recharts": "^2.10.3",
+    "remark-gfm": "^4.0.1",
     "web-vitals": "^4.2.1"
   },
   "devDependencies": {
