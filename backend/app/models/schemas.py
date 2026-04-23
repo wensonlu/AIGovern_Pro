@@ -47,6 +47,14 @@ class SourceReference(BaseModel):
     text_preview: str
 
 
+class WorkflowStep(BaseModel):
+    """工作流步骤"""
+    step: int
+    name: str
+    status: str  # pending, running, completed, failed
+    description: str
+
+
 class ChatResponse(BaseModel):
     """对话响应"""
     answer: str
@@ -54,6 +62,8 @@ class ChatResponse(BaseModel):
     confidence: float = Field(..., ge=0, le=1)
     session_id: str
     timestamp: datetime
+    intent: str = Field(default="knowledge_qa", description="识别到的用户意图")
+    workflow: list[WorkflowStep] = Field(default_factory=list, description="处理工作流")
 
 
 # ==================== 数据查询相关 ====================

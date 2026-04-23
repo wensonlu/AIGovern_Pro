@@ -11,7 +11,7 @@ from app.services.rag_service import RAGService
 from app.services.sql_service import sql_service
 from app.services.operation_service import operation_service
 from app.services.diagnosis_service import diagnosis_service
-from app.models.schemas import ChatResponse, SourceReference
+from app.models.schemas import ChatResponse, SourceReference, WorkflowStep
 from app.models.db_models import Order, User, Product
 from datetime import datetime
 import json
@@ -31,22 +31,23 @@ class AgentService:
         db: Session,
         session_id: Optional[str] = None
     ) -> ChatResponse:
-        """
-        处理用户消息，自动识别意图并调用相应工具
-        """
-        # 第一步：意图识别
+        """处理用户消息，自动识别意图并调用相应工具"""
         intent = await self._recognize_intent(message)
         print(f"🎯 识别到的意图: {intent}")
 
-        # 第二步：根据意图路由到相应处理逻辑
         if intent == "data_query":
-            return await self._handle_data_query(message, db, session_id)
+            response = await self._handle_data_query(message, db, session_id)
         elif intent == "smart_operation":
-            return await self._handle_smart_operation(message, db, session_id)
+            response = await self._handle_smart_operation(message, db, session_id)
         elif intent == "business_diagnosis":
-            return await self._handle_business_diagnosis(message, db, session_id)
-        else:  # knowledge_qa
-            return await self._handle_knowledge_qa(message, session_id)
+            response = await self._handle_business_diagnosis(message, db, session_id)
+        else:
+            response = await self._handle_knowledge_qa(message, session_id)
+
+        # 添加意图和工作流信息
+        response.intent = intent
+        response.workflow = self._build_workflow(intent)
+        return response
 
     async def process_message_stream(
         self,
@@ -55,15 +56,16 @@ class AgentService:
         session_id: Optional[str] = None,
         top_k: int = 5,
     ) -> AsyncIterator[dict[str, Any]]:
-        """
-        流式处理用户消息。
-        knowledge_qa 走真正的 LLM token 流；其他意图保持同一协议一次性返回。
-        """
+        """流式处理用户消息"""
         intent = await self._recognize_intent(message)
         print(f"🎯 识别到的意图: {intent}")
 
         if intent == "knowledge_qa":
             async for event in self.rag.process_query_stream(message, session_id, top_k):
+                # 为流事件添加intent和workflow信息
+                if event.get("type") == "sources":
+                    event["intent"] = intent
+                    event["workflow"] = [w.model_dump() for w in self._build_workflow(intent)]
                 yield event
             return
 
@@ -74,11 +76,17 @@ class AgentService:
         else:
             response = await self._handle_business_diagnosis(message, db, session_id)
 
+        # 添加意图信息
+        response.intent = intent
+        response.workflow = self._build_workflow(intent)
+
         yield {
             "type": "sources",
             "sources": [source.model_dump(mode="json") for source in response.sources],
             "confidence": response.confidence,
             "session_id": response.session_id,
+            "intent": intent,
+            "workflow": [w.model_dump() for w in response.workflow],
         }
         yield {"type": "delta", "content": response.answer}
         yield {
@@ -86,6 +94,7 @@ class AgentService:
             "confidence": response.confidence,
             "session_id": response.session_id,
             "timestamp": response.timestamp.isoformat(),
+            "intent": intent,
         }
 
     async def _recognize_intent(
@@ -507,6 +516,35 @@ class AgentService:
     ) -> ChatResponse:
         """处理知识问答意图 - 使用原有的 RAG 逻辑"""
         return await self.rag.process_query(message, session_id)
+
+    def _build_workflow(self, intent: str) -> list[WorkflowStep]:
+        """根据意图构建处理工作流"""
+        workflows = {
+            "knowledge_qa": [
+                WorkflowStep(step=1, name="向量化查询", status="completed", description="将用户问题转换为向量表示"),
+                WorkflowStep(step=2, name="知识库检索", status="completed", description="在向量数据库中搜索相关文档"),
+                WorkflowStep(step=3, name="生成回答", status="completed", description="基于检索结果生成自然语言回答"),
+            ],
+            "data_query": [
+                WorkflowStep(step=1, name="意图识别", status="completed", description="确认用户要查询数据"),
+                WorkflowStep(step=2, name="SQL生成", status="completed", description="将自然语言转换为SQL语句"),
+                WorkflowStep(step=3, name="SQL执行", status="completed", description="在数据库中执行查询"),
+                WorkflowStep(step=4, name="结果处理", status="completed", description="格式化查询结果并生成回答"),
+            ],
+            "smart_operation": [
+                WorkflowStep(step=1, name="操作解析", status="completed", description="识别操作类型和参数"),
+                WorkflowStep(step=2, name="权限检查", status="completed", description="验证操作权限"),
+                WorkflowStep(step=3, name="操作执行", status="completed", description="执行具体的业务操作"),
+                WorkflowStep(step=4, name="结果返回", status="completed", description="返回操作结果"),
+            ],
+            "business_diagnosis": [
+                WorkflowStep(step=1, name="指标计算", status="completed", description="计算业务关键指标"),
+                WorkflowStep(step=2, name="指标分析", status="completed", description="分析指标是否异常"),
+                WorkflowStep(step=3, name="问题诊断", status="completed", description="诊断存在的问题"),
+                WorkflowStep(step=4, name="建议生成", status="completed", description="生成改进建议"),
+            ],
+        }
+        return workflows.get(intent, [])
 
 
 # 全局代理服务实例

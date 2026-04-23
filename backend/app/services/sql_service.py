@@ -117,7 +117,7 @@ SELECT ... FROM ... WHERE ...
             return "SELECT SUM(amount) as total_gmv, DATE(created_at) as date FROM orders GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 10"
         elif "转化率" in query_lower or "conversion" in query_lower:
             return "SELECT COUNT(DISTINCT user_id) as unique_users, COUNT(*) as total_orders FROM orders"
-        elif "用户" in query_lower or "员工" in query_lower or "人员" in query_lower:
+        elif "用户" in query_lower or "员工" in query_lower or "人员" in query_lower or "入职" in query_lower:
             return "SELECT id, name, email, role, created_at FROM users LIMIT 20"
         elif "商品" in query_lower:
             return "SELECT id, name, sku, price, stock, category FROM products LIMIT 20"
