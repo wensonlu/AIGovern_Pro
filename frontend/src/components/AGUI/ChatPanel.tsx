@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Input, Button, Empty, Badge, Space, Divider, Tag, message, Alert } from 'antd';
 import { SendOutlined, CloseOutlined, CopyOutlined, LikeOutlined, DislikeOutlined, MessageOutlined } from '@ant-design/icons';
 import { streamChatWithKnowledge, type SourceReference } from '../../services/api';
+import { getContentRenderer } from '../ContentRenderer';
 import styles from './ChatPanel.module.css';
 
 interface Message {
@@ -24,12 +25,14 @@ interface SuggestedQuestion {
 // Memoized so typing in the input does not re-render stable message rows.
 const MessageRow = memo<{ message: Message; onCopy: (text: string) => void }>(
   ({ message: msg, onCopy }) => {
+    const ContentComponent = getContentRenderer(msg.content_type);
+
     return (
       <div className={`${styles.message} ${styles[msg.type]}`}>
         {msg.type === 'assistant' && <div className={styles.avatar}>🤖</div>}
 
         <div className={styles.messageContent}>
-          <p className={styles.text}>{msg.content}</p>
+          <ContentComponent content={msg.content} className={styles.text} />
           <p className={styles.timestamp} style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
             {msg.timestamp.toLocaleTimeString()}
           </p>

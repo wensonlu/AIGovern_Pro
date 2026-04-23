@@ -99,7 +99,7 @@ const SkillMapChart: React.FC<SkillMapChartProps> = ({
     node
       .append('circle')
       .attr('r', 14)
-      .attr('fill', (d: any) => PHASE_COLORS[d.phase] || '#9ca3af')
+      .attr('fill', (d: any) => PHASE_COLORS[d.phase as SkillPhase] || '#9ca3af')
       .attr('stroke', (d: any) => (d.phase === currentPhase ? '#1f2937' : 'white'))
       .attr('stroke-width', (d: any) => (d.phase === currentPhase ? 3 : 2))
       .attr('opacity', 0.9);
