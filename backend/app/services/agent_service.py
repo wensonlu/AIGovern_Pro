@@ -60,7 +60,12 @@ class AgentService:
         intent = await self._recognize_intent(message)
         print(f"🎯 识别到的意图: {intent}")
 
+        # 确定内容格式类型
+        content_type = self._determine_content_type(intent)
+
         if intent == "knowledge_qa":
+            # 发送format事件
+            yield {"type": "format", "content_type": content_type}
             async for event in self.rag.process_query_stream(message, session_id, top_k):
                 # 为流事件添加intent和workflow信息
                 if event.get("type") == "sources":
@@ -79,6 +84,9 @@ class AgentService:
         # 添加意图信息
         response.intent = intent
         response.workflow = self._build_workflow(intent)
+
+        # 发送format事件
+        yield {"type": "format", "content_type": content_type}
 
         yield {
             "type": "sources",
@@ -516,6 +524,15 @@ class AgentService:
     ) -> ChatResponse:
         """处理知识问答意图 - 使用原有的 RAG 逻辑"""
         return await self.rag.process_query(message, session_id)
+
+    def _determine_content_type(self, intent: str) -> Literal["text", "markdown", "html", "json"]:
+        """根据意图确定返回的内容格式类型"""
+        if intent == "data_query":
+            return "json"  # 数据查询返回JSON格式
+        elif intent == "business_diagnosis":
+            return "markdown"  # 诊断返回Markdown格式（包含表格、列表等）
+        else:
+            return "text"  # 默认返回纯文本
 
     def _build_workflow(self, intent: str) -> list[WorkflowStep]:
         """根据意图构建处理工作流"""
