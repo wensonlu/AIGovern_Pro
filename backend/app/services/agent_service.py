@@ -16,6 +16,9 @@ from app.models.db_models import Order, User, Product
 from datetime import datetime
 import json
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AgentService:
@@ -545,6 +548,56 @@ class AgentService:
             ],
         }
         return workflows.get(intent, [])
+
+    async def process_message_structured_stream(
+        self,
+        message: str,
+        db: Session,
+        session_id: Optional[str] = None,
+        top_k: int = 5,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """
+        结构化流式处理 - 支持所有 4 个意图
+        """
+        try:
+            # 1. 意图识别
+            intent = await self._recognize_intent(message)
+            logger.info(f"🎯 识别到的意图（结构化）: {intent}")
+
+            # 2. 根据意图调用相应的流式方法
+            if intent == "knowledge_qa":
+                async for event in self.rag.stream_with_structure(message, top_k):
+                    yield event
+
+            elif intent == "data_query":
+                async for event in sql_service.stream_with_structure(message, db, top_k):
+                    yield event
+
+            elif intent == "smart_operation":
+                # 先执行操作，再进行结构化流式处理
+                operation_type, parameters = await self._parse_operation(message)
+                if operation_type:
+                    result = await operation_service.execute_operation(operation_type, parameters)
+                    async for event in operation_service.stream_with_structure(message, result):
+                        yield event
+                else:
+                    yield {
+                        "type": "error",
+                        "message": "无法识别操作类型"
+                    }
+
+            elif intent == "business_diagnosis":
+                # 计算指标，进行诊断
+                metrics = await self._calculate_metrics(db)
+                async for event in diagnosis_service.stream_with_structure(message, metrics, db):
+                    yield event
+
+        except Exception as e:
+            logger.error(f"Error in process_message_structured_stream: {e}")
+            yield {
+                "type": "error",
+                "message": f"处理失败：{str(e)}"
+            }
 
 
 # 全局代理服务实例

@@ -1,10 +1,14 @@
-from typing import Any, Optional
+from typing import Any, Optional, AsyncIterator
 from datetime import datetime
 from app.core.config import settings
 from app.core.database import SessionLocal
 from sqlalchemy.orm import Session
 from app.models.db_models import OperationLog as OperationLogModel, Order, User, Product, ProductPriceHistory
 from sqlalchemy import text
+import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class OperationService:
@@ -275,6 +279,178 @@ class OperationService:
             "changed_by": changed_by,
             "history_recorded": True,
         }
+
+    async def stream_with_structure(
+        self, message: str, operation_result: dict[str, Any]
+    ) -> AsyncIterator[dict]:
+        """结构化流式处理操作结果"""
+        try:
+            from app.core.llm import llm_client, LLMServiceError, LLMTimeoutError
+            from app.models.schemas import ListOrderedSection, OrderedListItem, TextSection
+
+            # 1. 返回操作结果摘要
+            yield {
+                "type": "sources",
+                "sources": [{
+                    "document_id": 0,
+                    "title": "智能操作",
+                    "filename": "operation",
+                    "chunk_index": 0,
+                    "relevance": 1.0,
+                    "relevance_percentage": "100%",
+                    "text_preview": f"操作: {operation_result.get('operation_type', '')}"
+                }],
+                "confidence": 0.9 if operation_result.get('status') == 'success' else 0.5,
+            }
+
+            # 2. 构建结构化 prompt
+            prompt = self._build_structured_operation_prompt(message, operation_result)
+
+            # 3. 流式调用 LLM，累积完整响应
+            accumulated_content = ""
+            try:
+                async for chunk in llm_client.stream_text(prompt, max_tokens=1024):
+                    accumulated_content += chunk
+            except (LLMServiceError, LLMTimeoutError) as e:
+                logger.error(f"LLM 流式调用失败: {e}")
+                yield {
+                    "type": "error",
+                    "message": f"LLM 服务错误：{str(e)}"
+                }
+                return
+
+            # 4. 解析 LLM 输出为 Section 对象
+            try:
+                sections_data = json.loads(accumulated_content)
+                if not isinstance(sections_data, list):
+                    sections_data = [sections_data]
+            except json.JSONDecodeError:
+                logger.warning("LLM 返回的不是有效 JSON，尝试降级处理")
+                sections_data = self._parse_markdown_to_sections(accumulated_content)
+
+            # 5. 逐块返回 section
+            for section_data in sections_data:
+                try:
+                    section = self._validate_section(section_data)
+                    yield {
+                        "type": "section",
+                        "section": section.model_dump()
+                    }
+                except ValueError as e:
+                    logger.warning(f"Invalid section data: {e}, skipping")
+                    continue
+
+            # 6. 完成事件
+            yield {
+                "type": "done",
+                "confidence": 0.9 if operation_result.get('status') == 'success' else 0.5,
+            }
+
+        except Exception as e:
+            logger.error(f"Error in stream_with_structure: {e}")
+            yield {
+                "type": "error",
+                "message": f"处理失败：{str(e)}"
+            }
+
+    def _build_structured_operation_prompt(self, message: str, operation_result: dict) -> str:
+        """构建结构化操作 prompt"""
+        prompt = f"""用户指令：{message}
+
+操作执行结果：
+{json.dumps(operation_result, ensure_ascii=False, indent=2)}
+
+请将操作结果转换为以下 JSON 格式的 sections 数组：
+
+[
+  {{
+    "type": "text",
+    "markdown": "操作执行状态和结果摘要"
+  }},
+  {{
+    "type": "list_ordered",
+    "items": [
+      {{
+        "title": "关键结果",
+        "details_markdown": "详细信息"
+      }}
+    ]
+  }}
+]
+
+要求：
+1. 直接返回 JSON 数组，不要有任何其他文字
+2. 如果操作成功，用绿色勾号 ✅ 标记
+3. 如果操作失败，用红色叉号 ❌ 标记，并说明原因
+4. 用 list_ordered 展示关键的执行步骤和结果
+5. 确保返回的 JSON 格式正确
+"""
+        return prompt
+
+    def _validate_section(self, data: dict) -> "Section":
+        """验证并转换原始数据为 Section 对象"""
+        from app.models.schemas import ListOrderedSection, OrderedListItem, TextSection, Section
+
+        section_type = data.get("type")
+
+        if section_type == "text":
+            return TextSection(
+                type="text",
+                markdown=data.get("markdown", "")
+            )
+
+        elif section_type == "list_ordered":
+            items = [
+                OrderedListItem(
+                    title=item.get("title", ""),
+                    details_markdown=item.get("details_markdown")
+                )
+                for item in data.get("items", [])
+            ]
+            return ListOrderedSection(type="list_ordered", items=items)
+
+        else:
+            raise ValueError(f"Unknown section type: {section_type}")
+
+    def _parse_markdown_to_sections(self, content: str) -> list[dict]:
+        """降级方案：将 markdown 转换为 sections"""
+        import re
+        sections = []
+
+        parts = content.split("\n## ")
+
+        for part in parts:
+            if not part.strip():
+                continue
+
+            if part.strip().startswith("-") or re.match(r"^\d+\.", part):
+                items = self._extract_list_items(part)
+                list_type = "list_ordered" if re.match(r"^\d+\.", part) else "list_unordered"
+                sections.append({
+                    "type": list_type,
+                    "items": items
+                })
+            else:
+                sections.append({
+                    "type": "text",
+                    "markdown": part.strip()
+                })
+
+        return sections
+
+    def _extract_list_items(self, content: str) -> list[dict]:
+        """从 markdown 列表中提取项"""
+        import re
+        items = []
+        lines = content.split("\n")
+
+        for line in lines:
+            if line.strip().startswith("-") or re.match(r"^\d+\.", line):
+                title = re.sub(r"^(-|\d+\.)\s*", "", line).strip()
+                if title:
+                    items.append({"title": title})
+
+        return items
 
     def get_operation_logs(self, db: Session, limit: int = 50) -> list[dict]:
         """获取操作日志列表"""

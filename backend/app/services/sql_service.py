@@ -1,7 +1,12 @@
-from typing import Optional, Any
-from app.core.llm import llm_client
+from typing import Optional, Any, AsyncIterator
+from app.core.llm import llm_client, LLMServiceError, LLMTimeoutError
+from app.models.schemas import TextSection, ListOrderedSection, OrderedListItem, Section
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class SQLService:
@@ -167,6 +172,198 @@ CREATE TABLE metrics (
   dimension_1 VARCHAR(100)
 );
 """
+
+
+    async def stream_with_structure(
+        self, message: str, db: Session, top_k: int = 5
+    ) -> AsyncIterator[dict]:
+        """结构化流式处理数据查询 - 自动转换查询结果为 sections"""
+        try:
+            from app.core.llm import LLMServiceError, LLMTimeoutError
+            from app.models.schemas import ListOrderedSection, OrderedListItem, TextSection, Section
+            import json
+
+            # 1. 生成 SQL 和执行查询
+            sql, chart_type = await self.generate_sql(message)
+            result = await self.execute_query(sql, db)
+
+            # 2. 返回查询摘要
+            if result:
+                result_summary = f"查询到 {len(result)} 条数据"
+                result_preview = result[:5]  # 前5条数据作为预览
+            else:
+                result_summary = "未查询到数据"
+                result_preview = []
+
+            yield {
+                "type": "sources",
+                "sources": [{
+                    "document_id": 0,
+                    "title": "数据查询",
+                    "filename": "database",
+                    "chunk_index": 0,
+                    "relevance": 1.0,
+                    "relevance_percentage": "100%",
+                    "text_preview": f"SQL: {sql[:100]}..."
+                }],
+                "confidence": 0.95,
+            }
+
+            # 3. 构建结构化 prompt，让 LLM 输出 JSON sections
+            prompt = self._build_structured_query_prompt(message, sql, result_preview, result_summary)
+
+            # 4. 流式调用 LLM，累积完整响应
+            accumulated_content = ""
+            try:
+                async for chunk in self.llm.stream_text(prompt, max_tokens=2048):
+                    accumulated_content += chunk
+            except (LLMServiceError, LLMTimeoutError) as e:
+                logger.error(f"LLM 流式调用失败: {e}")
+                yield {
+                    "type": "error",
+                    "message": f"LLM 服务错误：{str(e)}"
+                }
+                return
+
+            # 5. 解析 LLM 输出为 Section 对象
+            try:
+                sections_data = json.loads(accumulated_content)
+                if not isinstance(sections_data, list):
+                    sections_data = [sections_data]
+            except json.JSONDecodeError:
+                logger.warning("LLM 返回的不是有效 JSON，尝试降级处理")
+                sections_data = self._parse_markdown_to_sections(accumulated_content)
+
+            # 6. 逐块返回 section
+            for section_data in sections_data:
+                try:
+                    section = self._validate_section(section_data)
+                    yield {
+                        "type": "section",
+                        "section": section.model_dump()
+                    }
+                except ValueError as e:
+                    logger.warning(f"Invalid section data: {e}, skipping")
+                    continue
+
+            # 7. 完成事件
+            yield {
+                "type": "done",
+                "confidence": 0.95,
+            }
+
+        except Exception as e:
+            logger.error(f"Error in stream_with_structure: {e}")
+            yield {
+                "type": "error",
+                "message": f"处理失败：{str(e)}"
+            }
+
+    def _build_structured_query_prompt(
+        self, message: str, sql: str, result_preview: list, result_summary: str
+    ) -> str:
+        """构建结构化查询 prompt"""
+        prompt = f"""用户查询：{message}
+
+执行的SQL：{sql}
+
+查询结果摘要：{result_summary}
+
+数据预览（前5条）：
+{json.dumps(result_preview, ensure_ascii=False, indent=2)}
+
+请将查询结果转换为以下 JSON 格式的 sections 数组，每个 section 是一个信息块：
+
+[
+  {{
+    "type": "text",
+    "markdown": "查询结果分析文本"
+  }},
+  {{
+    "type": "list_ordered",
+    "items": [
+      {{
+        "title": "第一条数据摘要",
+        "details_markdown": "详细信息"
+      }}
+    ]
+  }}
+]
+
+要求：
+1. 直接返回 JSON 数组，不要有任何其他文字
+2. 如果结果是表格数据，用 list_ordered 展示关键行
+3. markdown 字段可以用 **粗体** 和其他 markdown 语法
+4. 不要显示完整的原始 JSON 数据
+5. 确保返回的 JSON 格式正确
+"""
+        return prompt
+
+    def _validate_section(self, data: dict) -> "Section":
+        """验证并转换原始数据为 Section 对象"""
+        from app.models.schemas import ListOrderedSection, OrderedListItem, TextSection, Section
+
+        section_type = data.get("type")
+
+        if section_type == "text":
+            return TextSection(
+                type="text",
+                markdown=data.get("markdown", "")
+            )
+
+        elif section_type == "list_ordered":
+            items = [
+                OrderedListItem(
+                    title=item.get("title", ""),
+                    details_markdown=item.get("details_markdown")
+                )
+                for item in data.get("items", [])
+            ]
+            return ListOrderedSection(type="list_ordered", items=items)
+
+        else:
+            raise ValueError(f"Unknown section type: {section_type}")
+
+    def _parse_markdown_to_sections(self, content: str) -> list[dict]:
+        """降级方案：将 markdown 转换为 sections"""
+        import re
+        sections = []
+
+        # 按 ## 标题分段
+        parts = content.split("\n## ")
+
+        for part in parts:
+            if not part.strip():
+                continue
+
+            if part.strip().startswith("-") or re.match(r"^\d+\.", part):
+                items = self._extract_list_items(part)
+                list_type = "list_ordered" if re.match(r"^\d+\.", part) else "list_unordered"
+                sections.append({
+                    "type": list_type,
+                    "items": items
+                })
+            else:
+                sections.append({
+                    "type": "text",
+                    "markdown": part.strip()
+                })
+
+        return sections
+
+    def _extract_list_items(self, content: str) -> list[dict]:
+        """从 markdown 列表中提取项"""
+        import re
+        items = []
+        lines = content.split("\n")
+
+        for line in lines:
+            if line.strip().startswith("-") or re.match(r"^\d+\.", line):
+                title = re.sub(r"^(-|\d+\.)\s*", "", line).strip()
+                if title:
+                    items.append({"title": title})
+
+        return items
 
 
 sql_service = SQLService()
