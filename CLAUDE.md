@@ -33,10 +33,19 @@ cd frontend && pnpm lint             # ESLint check
 cd frontend && pnpm type-check       # TypeScript check
 cd frontend && pnpm format           # Format with Prettier
 
-# Backend
+# Backend (requires Python virtual environment)
+cd backend && source venv/bin/activate  # Activate virtual environment (macOS/Linux)
+cd backend && source venv/Scripts/activate  # Activate virtual environment (Windows)
 cd backend && python run.py          # Start FastAPI (auto-init DB, http://localhost:8000)
 cd backend && python -m pytest       # Run tests
 cd backend && python -m uvicorn app.main:app --reload  # Dev mode only
+```
+
+**⚠️ IMPORTANT for Backend:** Always activate the virtual environment before running Python commands:
+```bash
+cd backend && source venv/bin/activate  # Linux/macOS
+# OR
+cd backend && source venv/Scripts/activate  # Windows
 ```
 
 ### Environment
@@ -59,10 +68,12 @@ Read before starting:
 
 ## Universal Rules
 
-1. **Before commits**, run:
+1. **Before commits**, run (with backend venv activated):
    ```bash
    cd frontend && pnpm lint && pnpm type-check
-   cd backend && python -m pytest
+   cd backend && source venv/bin/activate && python -m pytest  # macOS/Linux
+   # OR
+   cd backend && source venv/Scripts/activate && python -m pytest  # Windows
    ```
 
 2. **Code style**: ESLint + Prettier (frontend auto-format), Black (backend)
@@ -79,5 +90,19 @@ Read before starting:
 
 ---
 
-**Last Updated**: 2026-03-31
+**Last Updated**: 2026-04-24
 **Status**: Phase 2 (LLM integration + RAG) — Active Development
+
+## Backend Execution Notes
+
+**🔧 AI Execution Requirement:** When executing backend commands via AI agent, ensure Python virtual environment is always activated first:
+
+```bash
+# For bash-based AI execution:
+cd backend && source venv/bin/activate && python run.py
+# or with compound commands:
+cd backend && source venv/bin/activate && python -m pytest && python run.py
+```
+
+The venv is located at `backend/venv/` and contains all project dependencies. Failing to activate it will result in "command not found" or import errors.
+
