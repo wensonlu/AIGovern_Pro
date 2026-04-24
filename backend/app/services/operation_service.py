@@ -325,8 +325,19 @@ class OperationService:
                 if not isinstance(sections_data, list):
                     sections_data = [sections_data]
             except json.JSONDecodeError:
-                logger.warning("LLM 返回的不是有效 JSON，尝试降级处理")
-                sections_data = self._parse_markdown_to_sections(accumulated_content)
+                logger.warning("LLM 返回的不是有效 JSON，尝试提取代码块中的 JSON")
+                extracted_json = self._extract_json_from_codeblock(accumulated_content)
+                if extracted_json:
+                    try:
+                        sections_data = json.loads(extracted_json)
+                        if not isinstance(sections_data, list):
+                            sections_data = [sections_data]
+                    except json.JSONDecodeError:
+                        logger.warning("代码块中的 JSON 解析失败，使用降级处理")
+                        sections_data = self._parse_markdown_to_sections(accumulated_content)
+                else:
+                    logger.warning("未找到代码块，使用降级处理")
+                    sections_data = self._parse_markdown_to_sections(accumulated_content)
 
             # 5. 逐块返回 section
             for section_data in sections_data:
@@ -451,6 +462,15 @@ class OperationService:
                     items.append({"title": title})
 
         return items
+
+    def _extract_json_from_codeblock(self, content: str) -> Optional[str]:
+        """从 markdown 代码块中提取 JSON"""
+        import re
+        pattern = r'```(?:json)?\s*\n([\s\S]*?)\n```'
+        match = re.search(pattern, content)
+        if match:
+            return match.group(1).strip()
+        return None
 
     def get_operation_logs(self, db: Session, limit: int = 50) -> list[dict]:
         """获取操作日志列表"""
