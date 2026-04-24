@@ -22,10 +22,40 @@ interface SuggestedQuestion {
   icon?: string;
 }
 
+// 自动检测内容格式
+function detectContentFormat(content: string): 'text' | 'markdown' | 'html' | 'json' {
+  // 检测 JSON
+  if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
+    try {
+      JSON.parse(content);
+      return 'json';
+    } catch {}
+  }
+
+  // 检测 HTML
+  if (content.includes('<') && content.includes('>')) {
+    return 'html';
+  }
+
+  // 检测 Markdown
+  if (
+    content.includes('#') || // 标题
+    content.includes('**') || // 加粗
+    content.includes('- ') || // 列表
+    content.includes('```') // 代码块
+  ) {
+    return 'markdown';
+  }
+
+  return 'text';
+}
+
 // Memoized so typing in the input does not re-render stable message rows.
 const MessageRow = memo<{ message: Message; onCopy: (text: string) => void }>(
   ({ message: msg, onCopy }) => {
-    const ContentComponent = getContentRenderer(msg.content_type);
+    // 如果没有 content_type，自动检测
+    const detectedType = msg.content_type || detectContentFormat(msg.content);
+    const ContentComponent = getContentRenderer(detectedType);
 
     return (
       <div className={`${styles.message} ${styles[msg.type]}`}>
@@ -154,10 +184,15 @@ const ChatPanel: React.FC = () => {
 
     if (!content || !assistantId) return;
 
-    updateAssistantMessage(assistantId, msg => ({
-      ...msg,
-      content: msg.content === '正在检索知识库...' ? content : `${msg.content}${content}`,
-    }));
+    updateAssistantMessage(assistantId, msg => {
+      const newContent = msg.content === '正在检索知识库...' ? content : `${msg.content}${content}`;
+      const newContentType = msg.content_type || detectContentFormat(newContent);
+      return {
+        ...msg,
+        content: newContent,
+        content_type: newContentType,
+      };
+    });
   }, [updateAssistantMessage]);
 
   const appendAssistantDelta = useCallback((assistantId: string, content: string) => {
