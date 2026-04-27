@@ -66,12 +66,14 @@ class RAGService:
             ).fetchall()
 
             documents = []
+            seen = {}  # 用于去重：key = (document_id, chunk_index), value = document
+
             for row in results:
                 # 将相关度限制在 0-1 范围内
                 relevance = float(row.relevance) if row.relevance else 0.0
                 relevance = max(0.0, min(1.0, relevance))
 
-                documents.append({
+                doc = {
                     "document_id": row.document_id,
                     "chunk_id": row.id,
                     "chunk_index": row.chunk_index,
@@ -79,14 +81,29 @@ class RAGService:
                     "title": row.title,
                     "filename": row.filename,
                     "relevance": relevance,
-                })
+                }
 
+                # 去重：如果已经见过这个 (document_id, chunk_index) 的组合
+                # 保留相关度更高的那个
+                key = (row.document_id, row.chunk_index)
+                if key not in seen:
+                    seen[key] = doc
+                    documents.append(doc)
+                else:
+                    # 如果新的相关度更高，替换旧的
+                    if relevance > seen[key]["relevance"]:
+                        # 找到旧的并替换
+                        for i, d in enumerate(documents):
+                            if d["document_id"] == row.document_id and d["chunk_index"] == row.chunk_index:
+                                documents[i] = doc
+                                seen[key] = doc
+                                break
+
+            logger.info(f"[RAG-检索] 原始结果 {len(results)} 条，去重后 {len(documents)} 条")
             return documents
 
         except Exception as e:
-            print(f"❌ pgvector 检索失败: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"❌ pgvector 检索失败: {e}", exc_info=True)
             return []
 
     async def generate_answer(
