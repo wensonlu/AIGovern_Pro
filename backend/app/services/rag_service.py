@@ -265,14 +265,20 @@ class RAGService:
             {"type": "section", "section": {"type": "text", "markdown": "..."}}
             {"type": "done", "confidence": 0.85}
         """
+        logger.info(f"[RAG流式处理] 开始处理问题: {question[:50]}...")
+
         try:
             # 1. 检索相关文档
+            logger.info(f"[RAG-1] 开始从向量数据库检索文档...")
             retrieved_docs = await self.retrieve_documents(question, top_k)
+            logger.info(f"[RAG-1完成] 检索到 {len(retrieved_docs)} 个相关文档")
+
             sources = self._build_sources(retrieved_docs, top_k)
             confidence = self._calculate_confidence(retrieved_docs, top_k)
             context = self._format_context_for_structured(retrieved_docs)
 
             # 2. 返回 sources 事件（用户能看到检索到的文档）
+            logger.info(f"[RAG-2] 发送 sources 事件，置信度: {confidence:.2%}")
             yield {
                 "type": "sources",
                 "sources": [s.model_dump() for s in sources],
@@ -280,60 +286,73 @@ class RAGService:
             }
 
             # 3. 构建结构化 prompt（关键：让 LLM 直接输出 JSON）
+            logger.info(f"[RAG-3] 构建结构化 prompt...")
             prompt = self._build_structured_prompt(question, context)
 
             # 4. 流式调用 LLM，累积完整响应
+            logger.info(f"[RAG-4] 开始调用 LLM 流式处理...")
             accumulated_content = ""
             try:
                 async for chunk in self.llm.stream_text(prompt, max_tokens=2048):
                     accumulated_content += chunk
             except (LLMServiceError, LLMTimeoutError) as e:
-                logger.error(f"LLM 流式调用失败: {e}")
+                logger.error(f"[RAG-4错误] LLM 流式调用失败: {e}")
                 yield {
                     "type": "error",
                     "message": f"LLM 服务错误：{str(e)}"
                 }
                 return
 
+            logger.info(f"[RAG-4完成] LLM 流式处理完成，获得 {len(accumulated_content)} 字符的响应")
+
             # 5. 解析 LLM 输出为 Section 对象
             # 返回原始 LLM 响应（用于调试和日志）
+            logger.info(f"[RAG-5] 返回原始 LLM 输出用于调试")
             yield {
                 "type": "debug",
                 "llm_output": accumulated_content
             }
 
+            logger.info(f"[RAG-6] 开始解析 JSON 并生成 sections...")
             try:
                 sections_data = json.loads(accumulated_content)
                 if not isinstance(sections_data, list):
                     sections_data = [sections_data]
+                logger.info(f"[RAG-6完成] 直接 JSON 解析成功，得到 {len(sections_data)} 个 sections")
             except json.JSONDecodeError:
-                logger.warning("LLM 返回的不是有效 JSON，尝试从代码块中提取 JSON")
+                logger.warning("[RAG-6] LLM 返回的不是有效 JSON，尝试从代码块中提取 JSON")
                 extracted_json = self._extract_json_from_codeblock(accumulated_content)
                 if extracted_json:
                     try:
                         sections_data = json.loads(extracted_json)
                         if not isinstance(sections_data, list):
                             sections_data = [sections_data]
+                        logger.info(f"[RAG-6完成] 代码块 JSON 解析成功，得到 {len(sections_data)} 个 sections")
                     except json.JSONDecodeError:
-                        logger.warning("代码块中的 JSON 解析失败，使用降级处理")
+                        logger.warning("[RAG-6] 代码块中的 JSON 解析失败，使用降级处理")
                         sections_data = self._parse_markdown_to_sections(accumulated_content)
+                        logger.info(f"[RAG-6完成] Markdown 降级处理，得到 {len(sections_data)} 个 sections")
                 else:
-                    logger.warning("未找到代码块，使用降级处理")
+                    logger.warning("[RAG-6] 未找到代码块，使用降级处理")
                     sections_data = self._parse_markdown_to_sections(accumulated_content)
+                    logger.info(f"[RAG-6完成] Markdown 降级处理，得到 {len(sections_data)} 个 sections")
 
             # 6. 逐块返回 section（用户能实时看到内容生成）
-            for section_data in sections_data:
+            logger.info(f"[RAG-7] 开始返回 {len(sections_data)} 个 sections...")
+            for idx, section_data in enumerate(sections_data):
                 try:
                     section = self._validate_section(section_data)
+                    logger.debug(f"[RAG-7] 返回 section {idx+1}/{len(sections_data)}: {section.type}")
                     yield {
                         "type": "section",
                         "section": section.model_dump()
                     }
                 except ValueError as e:
-                    logger.warning(f"Invalid section data: {e}, skipping")
+                    logger.warning(f"[RAG-7] Invalid section data at index {idx}: {e}, skipping")
                     continue
 
             # 7. 完成事件
+            logger.info(f"[RAG完成] 流式处理完毕")
             yield {
                 "type": "done",
                 "confidence": confidence,
@@ -341,7 +360,7 @@ class RAGService:
             }
 
         except Exception as e:
-            logger.error(f"Error in stream_with_structure: {e}")
+            logger.error(f"[RAG错误] stream_with_structure 失败: {e}", exc_info=True)
             yield {
                 "type": "error",
                 "message": f"处理失败：{str(e)}"

@@ -284,11 +284,14 @@ class OperationService:
         self, message: str, operation_result: dict[str, Any]
     ) -> AsyncIterator[dict]:
         """结构化流式处理操作结果"""
+        logger.info(f"[Operation流式处理] 开始处理操作结果: {operation_result.get('operation_type')}...")
+
         try:
             from app.core.llm import llm_client, LLMServiceError, LLMTimeoutError
             from app.models.schemas import ListOrderedSection, OrderedListItem, TextSection
 
             # 1. 返回操作结果摘要
+            logger.info(f"[Operation-1] 操作状态: {operation_result.get('status')}")
             yield {
                 "type": "sources",
                 "sources": [{
@@ -304,67 +307,80 @@ class OperationService:
             }
 
             # 2. 构建结构化 prompt
+            logger.info(f"[Operation-2] 构建结构化 prompt...")
             prompt = self._build_structured_operation_prompt(message, operation_result)
 
             # 3. 流式调用 LLM，累积完整响应
+            logger.info(f"[Operation-3] 开始调用 LLM 流式处理...")
             accumulated_content = ""
             try:
                 async for chunk in llm_client.stream_text(prompt, max_tokens=1024):
                     accumulated_content += chunk
             except (LLMServiceError, LLMTimeoutError) as e:
-                logger.error(f"LLM 流式调用失败: {e}")
+                logger.error(f"[Operation-3错误] LLM 流式调用失败: {e}")
                 yield {
                     "type": "error",
                     "message": f"LLM 服务错误：{str(e)}"
                 }
                 return
 
+            logger.info(f"[Operation-3完成] LLM 流式处理完成，获得 {len(accumulated_content)} 字符的响应")
+
             # 4. 解析 LLM 输出为 Section 对象
             # 返回原始 LLM 响应（用于调试和日志）
+            logger.info(f"[Operation-4] 返回原始 LLM 输出用于调试")
             yield {
                 "type": "debug",
                 "llm_output": accumulated_content
             }
 
+            logger.info(f"[Operation-5] 开始解析 JSON 并生成 sections...")
             try:
                 sections_data = json.loads(accumulated_content)
                 if not isinstance(sections_data, list):
                     sections_data = [sections_data]
+                logger.info(f"[Operation-5完成] 直接 JSON 解析成功，得到 {len(sections_data)} 个 sections")
             except json.JSONDecodeError:
-                logger.warning("LLM 返回的不是有效 JSON，尝试提取代码块中的 JSON")
+                logger.warning("[Operation-5] LLM 返回的不是有效 JSON，尝试提取代码块中的 JSON")
                 extracted_json = self._extract_json_from_codeblock(accumulated_content)
                 if extracted_json:
                     try:
                         sections_data = json.loads(extracted_json)
                         if not isinstance(sections_data, list):
                             sections_data = [sections_data]
+                        logger.info(f"[Operation-5完成] 代码块 JSON 解析成功，得到 {len(sections_data)} 个 sections")
                     except json.JSONDecodeError:
-                        logger.warning("代码块中的 JSON 解析失败，使用降级处理")
+                        logger.warning("[Operation-5] 代码块中的 JSON 解析失败，使用降级处理")
                         sections_data = self._parse_markdown_to_sections(accumulated_content)
+                        logger.info(f"[Operation-5完成] Markdown 降级处理，得到 {len(sections_data)} 个 sections")
                 else:
-                    logger.warning("未找到代码块，使用降级处理")
+                    logger.warning("[Operation-5] 未找到代码块，使用降级处理")
                     sections_data = self._parse_markdown_to_sections(accumulated_content)
+                    logger.info(f"[Operation-5完成] Markdown 降级处理，得到 {len(sections_data)} 个 sections")
 
-            # 5. 逐块返回 section
-            for section_data in sections_data:
+            # 6. 逐块返回 section
+            logger.info(f"[Operation-6] 开始返回 {len(sections_data)} 个 sections...")
+            for idx, section_data in enumerate(sections_data):
                 try:
                     section = self._validate_section(section_data)
+                    logger.debug(f"[Operation-6] 返回 section {idx+1}/{len(sections_data)}: {section.type}")
                     yield {
                         "type": "section",
                         "section": section.model_dump()
                     }
                 except ValueError as e:
-                    logger.warning(f"Invalid section data: {e}, skipping")
+                    logger.warning(f"[Operation-6] Invalid section data at index {idx}: {e}, skipping")
                     continue
 
-            # 6. 完成事件
+            # 7. 完成事件
+            logger.info(f"[Operation完成] 流式处理完毕")
             yield {
                 "type": "done",
                 "confidence": 0.9 if operation_result.get('status') == 'success' else 0.5,
             }
 
         except Exception as e:
-            logger.error(f"Error in stream_with_structure: {e}")
+            logger.error(f"[Operation错误] stream_with_structure 失败: {e}", exc_info=True)
             yield {
                 "type": "error",
                 "message": f"处理失败：{str(e)}"

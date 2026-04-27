@@ -559,41 +559,54 @@ class AgentService:
         """
         结构化流式处理 - 支持所有 4 个意图
         """
+        logger.info(f"[结构化流式处理] 开始处理用户消息: {message[:50]}...")
+
         try:
             # 1. 意图识别
+            logger.info(f"[步骤1] 开始意图识别...")
             intent = await self._recognize_intent(message)
-            logger.info(f"🎯 识别到的意图（结构化）: {intent}")
+            logger.info(f"[步骤1-完成] 🎯 识别到的意图: {intent}")
 
             # 2. 根据意图调用相应的流式方法
+            logger.info(f"[步骤2] 开始调用服务: {intent}")
+
             if intent == "knowledge_qa":
+                logger.info(f"[步骤2-RAG] 开始知识库检索...")
                 async for event in self.rag.stream_with_structure(message, top_k):
                     yield event
 
             elif intent == "data_query":
+                logger.info(f"[步骤2-SQL] 开始数据查询...")
                 async for event in sql_service.stream_with_structure(message, db, top_k):
                     yield event
 
             elif intent == "smart_operation":
-                # 先执行操作，再进行结构化流式处理
+                logger.info(f"[步骤2-Operation] 开始解析操作...")
                 operation_type, parameters = await self._parse_operation(message)
                 if operation_type:
+                    logger.info(f"[步骤2-Operation] 操作类型: {operation_type}, 参数: {parameters}")
                     result = await operation_service.execute_operation(operation_type, parameters)
+                    logger.info(f"[步骤2-Operation] 操作执行完成")
                     async for event in operation_service.stream_with_structure(message, result):
                         yield event
                 else:
+                    logger.error(f"[步骤2-Operation] 无法识别操作类型")
                     yield {
                         "type": "error",
                         "message": "无法识别操作类型"
                     }
 
             elif intent == "business_diagnosis":
-                # 计算指标，进行诊断
+                logger.info(f"[步骤2-Diagnosis] 开始计算业务指标...")
                 metrics = await self._calculate_metrics(db)
+                logger.info(f"[步骤2-Diagnosis] 指标计算完成，开始诊断分析...")
                 async for event in diagnosis_service.stream_with_structure(message, metrics, db):
                     yield event
 
+            logger.info(f"[流程完成] 处理完毕")
+
         except Exception as e:
-            logger.error(f"Error in process_message_structured_stream: {e}")
+            logger.error(f"[错误] process_message_structured_stream 失败: {e}", exc_info=True)
             yield {
                 "type": "error",
                 "message": f"处理失败：{str(e)}"

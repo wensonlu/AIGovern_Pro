@@ -178,14 +178,21 @@ CREATE TABLE metrics (
         self, message: str, db: Session, top_k: int = 5
     ) -> AsyncIterator[dict]:
         """结构化流式处理数据查询 - 自动转换查询结果为 sections"""
+        logger.info(f"[SQL流式处理] 开始处理查询: {message[:50]}...")
+
         try:
             from app.core.llm import LLMServiceError, LLMTimeoutError
             from app.models.schemas import ListOrderedSection, OrderedListItem, TextSection, Section
             import json
 
             # 1. 生成 SQL 和执行查询
+            logger.info(f"[SQL-1] 开始生成 SQL...")
             sql, chart_type = await self.generate_sql(message)
+            logger.info(f"[SQL-1] 生成的 SQL: {sql[:80]}...")
+
+            logger.info(f"[SQL-2] 开始执行查询...")
             result = await self.execute_query(sql, db)
+            logger.info(f"[SQL-2完成] 查询返回 {len(result)} 条数据")
 
             # 2. 返回查询摘要
             if result:
@@ -195,6 +202,7 @@ CREATE TABLE metrics (
                 result_summary = "未查询到数据"
                 result_preview = []
 
+            logger.info(f"[SQL-3] 发送查询结果摘要")
             yield {
                 "type": "sources",
                 "sources": [{
@@ -210,34 +218,41 @@ CREATE TABLE metrics (
             }
 
             # 3. 构建结构化 prompt，让 LLM 输出 JSON sections
+            logger.info(f"[SQL-4] 构建结构化 prompt...")
             prompt = self._build_structured_query_prompt(message, sql, result_preview, result_summary)
 
             # 4. 流式调用 LLM，累积完整响应
+            logger.info(f"[SQL-5] 开始调用 LLM 流式处理...")
             accumulated_content = ""
             try:
                 async for chunk in self.llm.stream_text(prompt, max_tokens=2048):
                     accumulated_content += chunk
             except (LLMServiceError, LLMTimeoutError) as e:
-                logger.error(f"LLM 流式调用失败: {e}")
+                logger.error(f"[SQL-5错误] LLM 流式调用失败: {e}")
                 yield {
                     "type": "error",
                     "message": f"LLM 服务错误：{str(e)}"
                 }
                 return
 
+            logger.info(f"[SQL-5完成] LLM 流式处理完成，获得 {len(accumulated_content)} 字符的响应")
+
             # 5. 解析 LLM 输出为 Section 对象
             # 返回原始 LLM 响应（用于调试和日志）
+            logger.info(f"[SQL-6] 返回原始 LLM 输出用于调试")
             yield {
                 "type": "debug",
                 "llm_output": accumulated_content
             }
 
+            logger.info(f"[SQL-7] 开始解析 JSON 并生成 sections...")
             try:
                 sections_data = json.loads(accumulated_content)
                 if not isinstance(sections_data, list):
                     sections_data = [sections_data]
+                logger.info(f"[SQL-7完成] 直接 JSON 解析成功，得到 {len(sections_data)} 个 sections")
             except json.JSONDecodeError:
-                logger.warning("LLM 返回的不是有效 JSON，尝试提取代码块中的 JSON")
+                logger.warning("[SQL-7] LLM 返回的不是有效 JSON，尝试提取代码块中的 JSON")
                 # 尝试从代码块中提取 JSON
                 extracted_json = self._extract_json_from_codeblock(accumulated_content)
                 if extracted_json:
@@ -245,33 +260,39 @@ CREATE TABLE metrics (
                         sections_data = json.loads(extracted_json)
                         if not isinstance(sections_data, list):
                             sections_data = [sections_data]
+                        logger.info(f"[SQL-7完成] 代码块 JSON 解析成功，得到 {len(sections_data)} 个 sections")
                     except json.JSONDecodeError:
-                        logger.warning("代码块中的 JSON 解析失败，使用降级处理")
+                        logger.warning("[SQL-7] 代码块中的 JSON 解析失败，使用降级处理")
                         sections_data = self._parse_markdown_to_sections(accumulated_content)
+                        logger.info(f"[SQL-7完成] Markdown 降级处理，得到 {len(sections_data)} 个 sections")
                 else:
-                    logger.warning("未找到代码块，使用降级处理")
+                    logger.warning("[SQL-7] 未找到代码块，使用降级处理")
                     sections_data = self._parse_markdown_to_sections(accumulated_content)
+                    logger.info(f"[SQL-7完成] Markdown 降级处理，得到 {len(sections_data)} 个 sections")
 
             # 6. 逐块返回 section
-            for section_data in sections_data:
+            logger.info(f"[SQL-8] 开始返回 {len(sections_data)} 个 sections...")
+            for idx, section_data in enumerate(sections_data):
                 try:
                     section = self._validate_section(section_data)
+                    logger.debug(f"[SQL-8] 返回 section {idx+1}/{len(sections_data)}: {section.type}")
                     yield {
                         "type": "section",
                         "section": section.model_dump()
                     }
                 except ValueError as e:
-                    logger.warning(f"Invalid section data: {e}, skipping")
+                    logger.warning(f"[SQL-8] Invalid section data at index {idx}: {e}, skipping")
                     continue
 
             # 7. 完成事件
+            logger.info(f"[SQL完成] 流式处理完毕")
             yield {
                 "type": "done",
                 "confidence": 0.95,
             }
 
         except Exception as e:
-            logger.error(f"Error in stream_with_structure: {e}")
+            logger.error(f"[SQL错误] stream_with_structure 失败: {e}", exc_info=True)
             yield {
                 "type": "error",
                 "message": f"处理失败：{str(e)}"
