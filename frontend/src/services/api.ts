@@ -38,6 +38,18 @@ export type ChatStreamEvent =
       session_id?: string;
     }
   | {
+      type: 'section';
+      section: {
+        type: 'text' | 'list_ordered' | 'list_unordered' | 'code_block' | 'table';
+        markdown?: string;
+        items?: any[];
+        language?: string;
+        code?: string;
+        headers?: string[];
+        rows?: string[][];
+      };
+    }
+  | {
       type: 'delta';
       content: string;
     }
@@ -54,6 +66,7 @@ export type ChatStreamEvent =
 
 export interface ChatStreamHandlers {
   onSources?: (event: Extract<ChatStreamEvent, { type: 'sources' }>) => void;
+  onSection?: (section: any) => void;
   onDelta?: (content: string) => void;
   onDone?: (event: Extract<ChatStreamEvent, { type: 'done' }>) => void;
 }
@@ -206,9 +219,13 @@ export async function streamChatWithKnowledge(
   question: string,
   sessionId: string = 'default',
   topK: number = 5,
-  handlers: ChatStreamHandlers = {}
+  handlers: ChatStreamHandlers = {},
+  useStructured: boolean = true  // 默认使用新的结构化 API
 ): Promise<ChatResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
+  // 优先使用结构化 API，降级到旧 API
+  const endpoint = useStructured ? '/api/chat/structured/stream' : '/api/chat/stream';
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -233,6 +250,7 @@ export async function streamChatWithKnowledge(
   let sources: SourceReference[] = [];
   let confidence = 0;
   let timestamp: string | undefined;
+  let sections: any[] = [];  // 结构化输出的 sections
 
   const consumeLine = (line: string) => {
     if (!line.trim()) return;
@@ -248,6 +266,17 @@ export async function streamChatWithKnowledge(
       sources = event.sources || [];
       confidence = event.confidence || 0;
       handlers.onSources?.(event);
+      return;
+    }
+
+    // 处理结构化 API 的 section 事件
+    if (event.type === 'section') {
+      const section = event.section;
+      if (section) {
+        sections.push(section);
+        // 将结构化的 section 返回给 handler
+        handlers.onSection?.(section);
+      }
       return;
     }
 

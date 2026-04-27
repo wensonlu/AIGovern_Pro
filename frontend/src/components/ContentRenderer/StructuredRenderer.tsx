@@ -53,7 +53,21 @@ const renderListItem = (item: ListItem, depth: number = 0) => {
 const StructuredRenderer: React.FC<ContentRendererProps> = ({ content, className }) => {
   const data = useMemo(() => {
     try {
-      return JSON.parse(content) as StructuredContent;
+      const parsed = JSON.parse(content);
+
+      // 如果已有 sections 字段，直接返回
+      if (parsed && 'sections' in parsed && Array.isArray(parsed.sections)) {
+        return parsed as StructuredContent;
+      }
+
+      // 如果是单个 section 对象，包装为 StructuredContent
+      if (parsed && 'type' in parsed) {
+        return {
+          sections: [parsed as Section],
+        } as StructuredContent;
+      }
+
+      return { sections: [] };
     } catch (e) {
       console.error('Failed to parse structured content:', e);
       return { sections: [] };

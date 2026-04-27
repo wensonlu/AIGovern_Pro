@@ -24,14 +24,24 @@ interface SuggestedQuestion {
 
 // 自动检测内容格式
 function detectContentFormat(content: string): 'text' | 'markdown' | 'html' | 'json' | 'structured' {
-  // 优先检测 structured（最特殊）
+  // 优先检测 structured 和 section（最特殊）
   if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
     try {
       const parsed = JSON.parse(content);
-      // 检查是否为结构化格式（有 sections 字段）
+
+      // 检查是否为完整的结构化格式（有 sections 数组字段）
       if (parsed && typeof parsed === 'object' && 'sections' in parsed && Array.isArray(parsed.sections)) {
         return 'structured';
       }
+
+      // 检查是否为单个 section 对象
+      if (parsed && typeof parsed === 'object' && 'type' in parsed) {
+        const type = parsed.type;
+        if (['text', 'list_ordered', 'list_unordered', 'code_block', 'table'].includes(type)) {
+          return 'structured';  // 单个 section 也用 StructuredRenderer 处理
+        }
+      }
+
       // 否则是普通 JSON
       return 'json';
     } catch {}
@@ -255,6 +265,11 @@ const ChatPanel: React.FC = () => {
         onSources: event => {
           pendingSourcesRef.current = event.sources || [];
           pendingConfidenceRef.current = event.confidence;
+        },
+        onSection: section => {
+          // 处理结构化 section：作为独立 JSON 对象发送
+          const sectionJson = JSON.stringify(section);
+          appendAssistantDelta(assistantMessageId, sectionJson);
         },
         onDelta: content => {
           appendAssistantDelta(assistantMessageId, content);
