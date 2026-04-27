@@ -45,6 +45,16 @@ const renderListItem = (item: ListItem, depth: number = 0) => {
               ul: ({ node, ...props }) => <ul style={{ marginLeft: '1em', marginTop: '2px', marginBottom: '2px' }} {...props} />,
               ol: ({ node, ...props }) => <ol style={{ marginLeft: '1em', marginTop: '2px', marginBottom: '2px' }} {...props} />,
               li: ({ node, ...props }) => <li style={{ marginBottom: '2px' }} {...props} />,
+              strong: ({ node, children, ...props }) => (
+                <strong style={{ fontWeight: 'bold', color: '#d63384', backgroundColor: 'rgba(214, 51, 132, 0.1)', padding: '0 4px', borderRadius: '2px' }} {...props}>
+                  {children}
+                </strong>
+              ),
+              em: ({ node, children, ...props }) => (
+                <em style={{ fontStyle: 'italic', color: '#0066cc' }} {...props}>
+                  {children}
+                </em>
+              ),
             }}
           >
             {item.details_markdown}
@@ -195,7 +205,16 @@ const StructuredRenderer: React.FC<ContentRendererProps> = ({ content, className
                     ul: ({ node, ...props }) => <ul style={{ marginLeft: '2em', marginBottom: '8px', marginTop: '4px' }} {...props} />,
                     ol: ({ node, ...props }) => <ol style={{ marginLeft: '2em', marginBottom: '8px', marginTop: '4px' }} {...props} />,
                     li: ({ node, ...props }) => <li style={{ marginBottom: '4px', lineHeight: '1.6' }} {...props} />,
-                    strong: ({ node, ...props }) => <strong style={{ fontWeight: 'bold', color: '#333' }} {...props} />,
+                    strong: ({ node, children, ...props }) => (
+                      <strong style={{ fontWeight: 'bold', color: '#d63384', backgroundColor: 'rgba(214, 51, 132, 0.1)', padding: '0 4px', borderRadius: '2px' }} {...props}>
+                        {children}
+                      </strong>
+                    ),
+                    em: ({ node, children, ...props }) => (
+                      <em style={{ fontStyle: 'italic', color: '#0066cc' }} {...props}>
+                        {children}
+                      </em>
+                    ),
                   }}
                 >
                   {section.markdown}
