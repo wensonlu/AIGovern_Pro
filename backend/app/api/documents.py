@@ -8,9 +8,13 @@ from app.core.config import settings
 from app.core.llm import llm_client
 from datetime import datetime
 import os
+import logging
 from io import BytesIO
 from PyPDF2 import PdfReader
 from docx import Document as DocxDocument
+
+# 获取日志记录器
+logger = logging.getLogger(__name__)
 
 
 class RetrievalRequest(BaseModel):
@@ -81,37 +85,51 @@ async def upload_document(
 ):
     """上传文档并进行向量化"""
 
+    logger.info(f"[上传接口] 收到上传请求: 文件={file.filename}, 大小={file.size}, 类型={file.content_type}")
+
     if not title:
         title = file.filename or "Untitled"
 
     if file.filename:
         ext = file.filename.split(".")[-1].lower()
+        logger.info(f"[上传接口] 文件扩展名: {ext}")
         if ext not in settings.allowed_extensions:
+            logger.error(f"[上传接口] 不支持的文件类型: {ext}, 允许的类型: {settings.allowed_extensions}")
             raise HTTPException(
                 status_code=400,
                 detail=f"不支持的文件类型: {ext}",
             )
 
     file_content = await file.read()
+    logger.info(f"[上传接口] 文件内容读取完成: {len(file_content)} 字节")
+
     if len(file_content) > settings.max_upload_size:
+        logger.error(f"[上传接口] 文件过大: {len(file_content)} > {settings.max_upload_size}")
         raise HTTPException(
             status_code=413,
             detail="文件过大",
         )
 
     # 保存文件
+    logger.info(f"[上传接口] 开始保存文件到 {settings.upload_dir}")
     os.makedirs(settings.upload_dir, exist_ok=True)
     file_path = os.path.join(settings.upload_dir, file.filename or "upload")
     with open(file_path, "wb") as f:
         f.write(file_content)
+    logger.info(f"[上传接口] 文件已保存: {file_path}")
 
     # 提取文本
+    logger.info(f"[上传接口] 开始提取文本...")
     text = await extract_text_from_file(file_content, file.filename or "")
+    logger.info(f"[上传接口] 文本提取完成: {len(text)} 字符")
 
     # 分块
+    logger.info(f"[上传接口] 开始分块处理...")
     chunks = chunk_text(text)
+    logger.info(f"[上传接口] 分块完成: {len(chunks)} 个分块")
 
     # 创建文档记录
+    logger.info(f"[上传接口] 创建文档记录: title={title}, category={category}")
     doc = Document(
         title=title,
         filename=file.filename,  # 保存原始文件名
@@ -122,8 +140,10 @@ async def upload_document(
     db.add(doc)
     db.commit()
     db.refresh(doc)
+    logger.info(f"[上传接口] 文档记录创建成功: doc_id={doc.id}")
 
     # 向量化并存入 pgvector
+    logger.info(f"[上传接口] 开始向量化 {len(chunks)} 个分块...")
     try:
         for i, chunk in enumerate(chunks):
             embedding = await llm_client.generate_embedding(chunk)
@@ -140,19 +160,22 @@ async def upload_document(
             )
             db.add(doc_chunk)
 
+            if (i + 1) % 5 == 0:
+                logger.debug(f"[上传接口] 向量化进度: {i+1}/{len(chunks)}")
+
         db.commit()
         embedding_status = "completed"
-        print(f"✓ 文档 {doc.id} 向量化完成: {len(chunks)} 个分块 (1536→768维)")
+        logger.info(f"✓ [上传接口] 文档 {doc.id} 向量化完成: {len(chunks)} 个分块 (1536→768维)")
     except Exception as e:
-        print(f"⚠️ 向量化失败 (文档 {doc.id}): {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"⚠️ [上传接口] 向量化失败 (文档 {doc.id}): {e}", exc_info=True)
         embedding_status = "failed"
         db.rollback()
 
     # 更新文档状态
     doc.embedding_status = embedding_status
     db.commit()
+
+    logger.info(f"[上传接口] 上传完成: doc_id={doc.id}, status={embedding_status}")
 
     return DocumentResponse(
         id=doc.id,
