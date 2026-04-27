@@ -50,6 +50,10 @@ export type ChatStreamEvent =
       };
     }
   | {
+      type: 'debug';
+      llm_output: string;
+    }
+  | {
       type: 'delta';
       content: string;
     }
@@ -277,6 +281,11 @@ export async function streamChatWithKnowledge(
         // 将结构化的 section 返回给 handler
         handlers.onSection?.(section);
       }
+      return;
+    }
+
+    // 调试事件 - 原始 LLM 输出（不使用）
+    if (event.type === 'debug') {
       return;
     }
 

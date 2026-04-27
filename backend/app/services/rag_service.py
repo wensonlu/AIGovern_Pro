@@ -296,6 +296,12 @@ class RAGService:
                 return
 
             # 5. 解析 LLM 输出为 Section 对象
+            # 返回原始 LLM 响应（用于调试和日志）
+            yield {
+                "type": "debug",
+                "llm_output": accumulated_content
+            }
+
             try:
                 sections_data = json.loads(accumulated_content)
                 if not isinstance(sections_data, list):
