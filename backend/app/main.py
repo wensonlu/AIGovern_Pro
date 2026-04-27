@@ -3,8 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 import os
+import logging
 from app.core.config import settings
 from app.api import documents, chat, query, operations, diagnosis, products
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+# 获取应用日志记录器
+logger = logging.getLogger(__name__)
 
 # 创建 FastAPI 应用
 app = FastAPI(
@@ -122,4 +132,5 @@ if __name__ == "__main__":
         host=settings.host,
         port=settings.port,
         reload=settings.debug,
+        log_level="info",
     )

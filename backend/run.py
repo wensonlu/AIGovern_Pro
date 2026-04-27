@@ -3,8 +3,15 @@
 
 import os
 import sys
+import logging
 
 sys.path.insert(0, os.path.dirname(__file__))
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 from app.core.config import settings
 from app.core.database import Base, engine, SessionLocal
@@ -82,6 +89,7 @@ def main():
         host=settings.host,
         port=settings.port,
         reload=settings.debug,
+        log_level="info",
     )
 
 
