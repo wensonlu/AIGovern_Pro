@@ -557,13 +557,57 @@ class AgentService:
         top_k: int = 5,
     ) -> AsyncIterator[dict[str, Any]]:
         """
-        结构化流式处理 - 支持所有 4 个意图
+        结构化流式处理 - 支持所有 4 个意图 + 复杂意图
         """
         logger.info(f"[结构化流式处理] 开始处理用户消息: {message[:50]}...")
 
         try:
-            # 1. 意图识别
-            logger.info(f"[步骤1] 开始意图识别...")
+            # 0. 先检测是否为复杂意图（多Agent场景）
+            logger.info(f"[步骤0] 开始检测复杂意图...")
+            from app.services.multi_agent_service import multi_agent_service
+
+            complex_analysis = await multi_agent_service.analyze_complex_intent(message)
+            logger.info(f"[步骤0-完成] 复杂意图分析: 是否复杂={complex_analysis.is_complex}, "
+                       f"主意图={complex_analysis.main_intent}, 子意图={complex_analysis.sub_intents}")
+
+            # 0.1 如果是复杂意图，使用多Agent处理
+            if complex_analysis.is_complex:
+                logger.info(f"[步骤0.1] 检测到复杂意图，启动多Agent处理...")
+
+                # 处理复杂意图（多Agent协作）
+                response = await multi_agent_service.process_complex_message(
+                    message, db, session_id, top_k
+                )
+
+                # 转换为流式输出
+                logger.info(f"[步骤0.1-完成] 多Agent处理完成，开始流式返回结果")
+
+                # 返回sources事件
+                yield {
+                    "type": "sources",
+                    "sources": [s.model_dump() for s in response.sources],
+                    "confidence": response.confidence,
+                }
+
+                # 返回section事件（将answer转换为text section）
+                yield {
+                    "type": "section",
+                    "section": {
+                        "type": "text",
+                        "markdown": response.answer
+                    }
+                }
+
+                # 返回done事件
+                yield {
+                    "type": "done",
+                    "confidence": response.confidence,
+                    "timestamp": response.timestamp.isoformat(),
+                }
+                return
+
+            # 1. 单一意图 - 意图识别
+            logger.info(f"[步骤1] 单一意图，开始意图识别...")
             intent = await self._recognize_intent(message)
             logger.info(f"[步骤1-完成] 🎯 识别到的意图: {intent}")
 
