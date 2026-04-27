@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 
-export type ContentType = 'text' | 'markdown' | 'html' | 'json';
+export type ContentType = 'text' | 'markdown' | 'html' | 'json' | 'structured';
 
 export interface ContentRendererProps {
   content: string;

@@ -3,6 +3,7 @@ import TextRenderer from './TextRenderer';
 import MarkdownRenderer from './MarkdownRenderer';
 import HtmlRenderer from './HtmlRenderer';
 import JsonRenderer from './JsonRenderer';
+import StructuredRenderer from './StructuredRenderer';
 import { ContentRendererProps, ContentType } from './types';
 
 type RendererMap = {
@@ -14,6 +15,7 @@ const renderers: RendererMap = {
   markdown: MarkdownRenderer,
   html: HtmlRenderer,
   json: JsonRenderer,
+  structured: StructuredRenderer,
 };
 
 export const getContentRenderer = (contentType?: string | null): FC<ContentRendererProps> => {

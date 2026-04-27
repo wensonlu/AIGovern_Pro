@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Any
+from typing import Optional, Any, Union, Literal
 from datetime import datetime
+from enum import Enum
 
 
 # ==================== 知识库相关 ====================
@@ -160,3 +161,77 @@ class ProductPriceHistoryResponse(BaseModel):
     changed_by_id: Optional[int]
     reason: Optional[str]
     created_at: datetime
+
+
+# ==================== 结构化输出相关 ====================
+
+class SectionType(str, Enum):
+    """Section 类型枚举"""
+    TEXT = "text"
+    LIST_ORDERED = "list_ordered"
+    LIST_UNORDERED = "list_unordered"
+    CODE_BLOCK = "code_block"
+    TABLE = "table"
+
+
+class TextSection(BaseModel):
+    """文本 Section"""
+    type: Literal["text"]
+    markdown: str = Field(..., description="文本内容，支持 markdown 格式")
+
+
+class OrderedListItem(BaseModel):
+    """列表项"""
+    title: str = Field(..., description="项目标题")
+    details_markdown: Optional[str] = Field(None, description="项目详情，支持 markdown")
+    subitems: Optional[list["OrderedListItem"]] = Field(None, description="子项")
+
+
+OrderedListItem.model_rebuild()
+
+
+class ListOrderedSection(BaseModel):
+    """有序列表 Section"""
+    type: Literal["list_ordered"]
+    items: list[OrderedListItem] = Field(..., description="列表项")
+
+
+class ListUnorderedSection(BaseModel):
+    """无序列表 Section"""
+    type: Literal["list_unordered"]
+    items: list[OrderedListItem] = Field(..., description="列表项")
+
+
+class CodeBlockSection(BaseModel):
+    """代码块 Section"""
+    type: Literal["code_block"]
+    language: str = Field(..., description="编程语言")
+    code: str = Field(..., description="代码内容")
+
+
+class TableSection(BaseModel):
+    """表格 Section"""
+    type: Literal["table"]
+    headers: list[str] = Field(..., description="表头")
+    rows: list[list[str]] = Field(..., description="表行数据")
+
+
+# 联合类型：所有可能的 Section
+Section = Union[
+    TextSection,
+    ListOrderedSection,
+    ListUnorderedSection,
+    CodeBlockSection,
+    TableSection,
+]
+
+
+class StructuredChatResponse(BaseModel):
+    """结构化对话响应"""
+    sections: list[Section] = Field(..., description="内容 sections")
+    sources: list[SourceReference] = Field(default_factory=list, description="信息源")
+    confidence: float = Field(..., ge=0, le=1, description="置信度")
+    session_id: str = Field(..., description="会话 ID")
+    timestamp: datetime = Field(default_factory=datetime.now, description="时间戳")
+    intent: str = Field(default="knowledge_qa", description="识别到的用户意图")
+    workflow: list[WorkflowStep] = Field(default_factory=list, description="处理工作流")

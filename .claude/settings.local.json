@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pkill -f vite)",
+      "Bash(pnpm dev *)",
+      "WebSearch",
+      "Bash(python run.py)",
+      "Bash(echo \"✅ Backend started \\(PID: $!\\)\")",
+      "Bash(pkill -f \"python run.py\")",
+      "Bash(pkill -f \"pnpm dev\")",
+      "Bash(awk '{print $2}')",
+      "Bash(xargs kill *)"
+    ]
+  }
+}

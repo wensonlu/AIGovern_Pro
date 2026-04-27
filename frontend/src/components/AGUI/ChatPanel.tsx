@@ -10,7 +10,7 @@ interface Message {
   id: string;
   type: 'user' | 'assistant';
   content: string;
-  content_type?: 'text' | 'markdown' | 'html' | 'json';
+  content_type?: 'text' | 'markdown' | 'html' | 'json' | 'structured';
   timestamp: Date;
   sources?: SourceReference[];
   confidence?: number;
@@ -23,11 +23,16 @@ interface SuggestedQuestion {
 }
 
 // 自动检测内容格式
-function detectContentFormat(content: string): 'text' | 'markdown' | 'html' | 'json' {
-  // 检测 JSON
+function detectContentFormat(content: string): 'text' | 'markdown' | 'html' | 'json' | 'structured' {
+  // 优先检测 structured（最特殊）
   if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
     try {
-      JSON.parse(content);
+      const parsed = JSON.parse(content);
+      // 检查是否为结构化格式（有 sections 字段）
+      if (parsed && typeof parsed === 'object' && 'sections' in parsed && Array.isArray(parsed.sections)) {
+        return 'structured';
+      }
+      // 否则是普通 JSON
       return 'json';
     } catch {}
   }

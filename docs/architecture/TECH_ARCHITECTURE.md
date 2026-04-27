@@ -153,4 +153,15 @@ FunctionCalling：调用 approve_expense_batch() 函数
 
 ---
 
-**版本**：1.0 | **最后更新**：2026-03-12
+## 📌 架构决策记录 (ADR)
+
+本项目采用 ADR (Architecture Decision Record) 记录关键设计决策：
+
+| ADR | 标题 | 状态 | 描述 |
+|-----|------|------|------|
+| [ADR-0001](./ADR-0001-content-format-detection.md) | 自动内容格式检测 | ✅ 已实施 | 从后端声明式格式改为前端自动检测，支持混合格式响应 |
+| [ADR-0002](./ADR-0002-content-format-strategy.md) | 内容格式规范化策略对比 | 📚 档案 | 方案 1（后端规范化）vs 方案 2（Prompt工程）的设计对比与决策建议 |
+
+---
+
+**版本**：1.0 | **最后更新**：2026-03-12 | **ADR更新**：2026-04-27

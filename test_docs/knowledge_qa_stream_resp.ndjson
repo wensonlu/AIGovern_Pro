@@ -1,0 +1,45 @@
+{"type": "sources", "sources": [{"document_id": 16, "title": "product_specs.md", "filename": "product_specs.md", "chunk_index": 1, "relevance": 0.379488363678945, "relevance_percentage": "38%", "text_preview": "审批工作流：最多 5 级审批\n- 凭证保留期：至少 7 年\n\n#### 报表功能\n- **支持的报表类型**：\n  - 资产负债表\n  - 利润表\n  - 现金流量表\n  - 试算平衡表\n  - 自定义报表\n\n- **报表维度**：按部门、成本中心、项目分析\n- **数据对比**：同比、环比、自定义时间段\n- **导出格式**：Excel、PDF、HTML\n\n#### 发票管理\n- 支持增值税普通"}, {"document_id": 16, "title": "product_specs.md", "filename": "product_specs.md", "chunk_index": 2, "relevance": 0.320996778781291, "relevance_percentage": "32%", "text_preview": "- **超量预警**：超过最大库存时告警\n- **过期预警**：即将过期商品提示（可配置天数）\n- **滞销预警**：30 天未动销商品\n\n#### 盘点功能\n- **周期盘点**：支持月盘、季盘、年盘\n- **抽盘**：随机选择商品进行盘点\n- **全盘**：对仓库全部商品盘点\n- **盘点差异处理**：自动生成调整单\n\n### 3. 采购管理模块\n\n#### 供应商管理\n- **档案维护**："}, {"document_id": 16, "title": "product_specs.md", "filename": "product_specs.md", "chunk_index": 4, "relevance": 0.280903677700944, "relevance_percentage": "28%", "text_preview": "型**：增值税发票、普通发票\n- **开票时间**：可配置发货前或发货后\n- **收据格式**：纸质、电子、PDF\n\n### 5. 生产管理模块\n\n#### 生产计划\n- **计划方式**：按订单、按库存、混合模式\n- **计划周期**：支持日、周、月计划\n- **工艺路线**：定义产品生产步骤和时间\n- **产能规划**：基于机器能力和人力分配\n\n#### 生产执行\n- **工单下达**：生成生"}], "confidence": 0.3271296067203933, "session_id": "cw-stream-001", "intent": "knowledge_qa", "workflow": [{"step": 1, "name": "向量化查询", "status": "completed", "description": "将用户问题转换为向量表示"}, {"step": 2, "name": "知识库检索", "status": "completed", "description": "在向量数据库中搜索相关文档"}, {"step": 3, "name": "生成回答", "status": "completed", "description": "基于检索结果生成自然语言回答"}]}
+{"type": "delta", "content": "# 知识库中的文"}
+{"type": "delta", "content": "档\n\n根据提供的"}
+{"type": "delta", "content": "内容，知识库中共"}
+{"type": "delta", "content": "有 **3 份文"}
+{"type": "delta", "content": "档**：\n\n##"}
+{"type": "delta", "content": " 文档清单\n\n1"}
+{"type": "delta", "content": ". **文档 1"}
+{"type": "delta", "content": "**：财务管理和"}
+{"type": "delta", "content": "库存管理模块\n "}
+{"type": "delta", "content": "  - 包含：审"}
+{"type": "delta", "content": "批工作流、报表功"}
+{"type": "delta", "content": "能、发票管理、库"}
+{"type": "delta", "content": "存管理模块（分类"}
+{"type": "delta", "content": "、操作、预警机制"}
+{"type": "delta", "content": "等）\n\n2. *"}
+{"type": "delta", "content": "*文档 2**："}
+{"type": "delta", "content": "库存管理和采购管"}
+{"type": "delta", "content": "理模块\n   -"}
+{"type": "delta", "content": " 包含：库存预警"}
+{"type": "delta", "content": "机制（超量预警、"}
+{"type": "delta", "content": "过期预警、滞销预"}
+{"type": "delta", "content": "警）、盘点功能、"}
+{"type": "delta", "content": "采购管理模块（供"}
+{"type": "delta", "content": "应商管理、采购流"}
+{"type": "delta", "content": "程、采购政策等）"}
+{"type": "delta", "content": "\n\n3. **文"}
+{"type": "delta", "content": "档 3**：销售"}
+{"type": "delta", "content": "管理、生产管理和"}
+{"type": "delta", "content": "用户权限模块\n "}
+{"type": "delta", "content": "  - 包含：发"}
+{"type": "delta", "content": "票类型和开票配置"}
+{"type": "delta", "content": "、生产管理模块（"}
+{"type": "delta", "content": "生产计划、生产执"}
+{"type": "delta", "content": "行、成本管理）、"}
+{"type": "delta", "content": "用户和权限管理（"}
+{"type": "delta", "content": "用户管理、数据安"}
+{"type": "delta", "content": "全等）\n\n## "}
+{"type": "delta", "content": "主要覆盖的业务模"}
+{"type": "delta", "content": "块\n\n- 财务管"}
+{"type": "delta", "content": "理\n- 库存管理"}
+{"type": "delta", "content": "\n- 采购管理\n"}
+{"type": "delta", "content": "- 生产管理\n-"}
+{"type": "delta", "content": " 用户和权限管理"}
+{"type": "done", "confidence": 0.3271296067203933, "session_id": "cw-stream-001", "timestamp": "2026-04-24T22:46:49.056834"}
