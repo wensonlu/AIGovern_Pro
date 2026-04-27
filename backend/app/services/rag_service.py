@@ -301,9 +301,19 @@ class RAGService:
                 if not isinstance(sections_data, list):
                     sections_data = [sections_data]
             except json.JSONDecodeError:
-                # 降级：如果 LLM 没有返回有效 JSON，尝试解析 markdown
-                logger.warning("LLM 返回的不是有效 JSON，尝试降级处理")
-                sections_data = self._parse_markdown_to_sections(accumulated_content)
+                logger.warning("LLM 返回的不是有效 JSON，尝试从代码块中提取 JSON")
+                extracted_json = self._extract_json_from_codeblock(accumulated_content)
+                if extracted_json:
+                    try:
+                        sections_data = json.loads(extracted_json)
+                        if not isinstance(sections_data, list):
+                            sections_data = [sections_data]
+                    except json.JSONDecodeError:
+                        logger.warning("代码块中的 JSON 解析失败，使用降级处理")
+                        sections_data = self._parse_markdown_to_sections(accumulated_content)
+                else:
+                    logger.warning("未找到代码块，使用降级处理")
+                    sections_data = self._parse_markdown_to_sections(accumulated_content)
 
             # 6. 逐块返回 section（用户能实时看到内容生成）
             for section_data in sections_data:
@@ -424,6 +434,14 @@ class RAGService:
 
         else:
             raise ValueError(f"Unknown section type: {section_type}")
+
+    def _extract_json_from_codeblock(self, content: str):
+        """从 markdown 代码块中提取 JSON"""
+        pattern = r'```(?:json)?\s*\n([\s\S]*?)\n```'
+        match = re.search(pattern, content)
+        if match:
+            return match.group(1).strip()
+        return None
 
     def _parse_markdown_to_sections(self, content: str) -> list[dict]:
         """
