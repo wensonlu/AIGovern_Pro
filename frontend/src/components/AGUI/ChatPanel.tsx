@@ -176,10 +176,12 @@ const ChatPanel: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastFailedTextRef = useRef<string | null>(null);
   const pendingDeltaRef = useRef('');
+  const pendingSectionsRef = useRef<any[]>([]);
   const pendingSourcesRef = useRef<SourceReference[]>([]);
   const pendingConfidenceRef = useRef<number | undefined>(undefined);
   const pendingAssistantIdRef = useRef<string | null>(null);
   const deltaFrameRef = useRef<number | null>(null);
+  const isStructuredStreamRef = useRef(false);
 
   const suggestedQuestions: SuggestedQuestion[] = [
     { id: '1', text: '最近7天订单趋势如何？', icon: '📊' },
@@ -193,11 +195,32 @@ const ChatPanel: React.FC = () => {
 
   const flushPendingDelta = useCallback(() => {
     const content = pendingDeltaRef.current;
+    const sections = pendingSectionsRef.current;
     const assistantId = pendingAssistantIdRef.current;
+    const isStructuredStream = isStructuredStreamRef.current;
+
     pendingDeltaRef.current = '';
+    pendingSectionsRef.current = [];
     deltaFrameRef.current = null;
 
-    if (!content || !assistantId) return;
+    if (!assistantId) return;
+
+    // 如果收到了结构化的 sections，构建完整的 StructuredContent
+    if (sections.length > 0 && isStructuredStream) {
+      const structuredContent = {
+        sections: sections,
+      };
+      const contentJson = JSON.stringify(structuredContent);
+      updateAssistantMessage(assistantId, msg => ({
+        ...msg,
+        content: contentJson,
+        content_type: 'structured',
+      }));
+      return;
+    }
+
+    // 否则处理普通文本流
+    if (!content) return;
 
     updateAssistantMessage(assistantId, msg => {
       const newContent = msg.content === '正在检索知识库...' ? content : `${msg.content}${content}`;
@@ -252,9 +275,11 @@ const ChatPanel: React.FC = () => {
     setLastError(null);
     lastFailedTextRef.current = null;
     pendingDeltaRef.current = '';
+    pendingSectionsRef.current = [];
     pendingSourcesRef.current = [];
     pendingConfidenceRef.current = undefined;
     pendingAssistantIdRef.current = assistantMessageId;
+    isStructuredStreamRef.current = false;
     if (deltaFrameRef.current !== null) {
       window.cancelAnimationFrame(deltaFrameRef.current);
       deltaFrameRef.current = null;
@@ -265,11 +290,13 @@ const ChatPanel: React.FC = () => {
         onSources: event => {
           pendingSourcesRef.current = event.sources || [];
           pendingConfidenceRef.current = event.confidence;
+          isStructuredStreamRef.current = true;  // 标记为结构化流
         },
         onSection: section => {
-          // 处理结构化 section：作为独立 JSON 对象发送
-          const sectionJson = JSON.stringify(section);
-          appendAssistantDelta(assistantMessageId, sectionJson);
+          // 收集 section 对象
+          if (section) {
+            pendingSectionsRef.current.push(section);
+          }
         },
         onDelta: content => {
           appendAssistantDelta(assistantMessageId, content);
