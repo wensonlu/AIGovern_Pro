@@ -34,11 +34,21 @@ interface StructuredContent {
 const renderListItem = (item: ListItem, depth: number = 0) => {
   const paddingLeft = `${depth * 1.5}rem`;
   return (
-    <div key={item.title} style={{ paddingLeft }}>
-      <strong>{item.title}</strong>
+    <div key={item.title} style={{ paddingLeft, marginBottom: '8px' }}>
+      <strong style={{ display: 'block', marginBottom: '4px' }}>{item.title}</strong>
       {item.details_markdown && (
-        <div style={{ marginTop: '4px', marginBottom: '4px' }}>
-          <ReactMarkdown>{item.details_markdown}</ReactMarkdown>
+        <div style={{ marginTop: '4px', marginBottom: '4px', lineHeight: '1.6' }}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              p: ({ node, ...props }) => <p style={{ margin: '2px 0' }} {...props} />,
+              ul: ({ node, ...props }) => <ul style={{ marginLeft: '1em', marginTop: '2px', marginBottom: '2px' }} {...props} />,
+              ol: ({ node, ...props }) => <ol style={{ marginLeft: '1em', marginTop: '2px', marginBottom: '2px' }} {...props} />,
+              li: ({ node, ...props }) => <li style={{ marginBottom: '2px' }} {...props} />,
+            }}
+          >
+            {item.details_markdown}
+          </ReactMarkdown>
         </div>
       )}
       {item.subitems && item.subitems.length > 0 && (
@@ -175,7 +185,21 @@ const StructuredRenderer: React.FC<ContentRendererProps> = ({ content, className
           data.sections.map((section, idx) => (
             <div key={idx} className="structured-section">
               {section.type === 'text' && (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{section.markdown}</ReactMarkdown>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: ({ node, ...props }) => <h1 style={{ marginBottom: '12px', marginTop: '12px', fontSize: '24px', fontWeight: 'bold' }} {...props} />,
+                    h2: ({ node, ...props }) => <h2 style={{ marginBottom: '10px', marginTop: '10px', fontSize: '20px', fontWeight: 'bold' }} {...props} />,
+                    h3: ({ node, ...props }) => <h3 style={{ marginBottom: '8px', marginTop: '8px', fontSize: '18px', fontWeight: 'bold' }} {...props} />,
+                    p: ({ node, ...props }) => <p style={{ marginBottom: '8px', lineHeight: '1.6' }} {...props} />,
+                    ul: ({ node, ...props }) => <ul style={{ marginLeft: '2em', marginBottom: '8px', marginTop: '4px' }} {...props} />,
+                    ol: ({ node, ...props }) => <ol style={{ marginLeft: '2em', marginBottom: '8px', marginTop: '4px' }} {...props} />,
+                    li: ({ node, ...props }) => <li style={{ marginBottom: '4px', lineHeight: '1.6' }} {...props} />,
+                    strong: ({ node, ...props }) => <strong style={{ fontWeight: 'bold', color: '#333' }} {...props} />,
+                  }}
+                >
+                  {section.markdown}
+                </ReactMarkdown>
               )}
 
               {section.type === 'list_ordered' && (
