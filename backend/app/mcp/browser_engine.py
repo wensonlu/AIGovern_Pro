@@ -136,17 +136,46 @@ class BrowserEngine:
             return ToolResult(success=False, message=f"Element {selector} not found within {timeout_ms}ms", error=str(e))
 
     async def get_page_state(self, session_id: str) -> ToolResult:
-        """Get current page state (URL, title, visible text)"""
+        """Get current page state with DOM structure (elements with data-testid)"""
         try:
             page = await self.get_or_create_page(session_id)
             url = page.url
             title = await page.title()
 
-            # Get visible text (simplified)
-            visible_text = await page.evaluate(
+            # Get structured DOM elements with data-testid
+            dom_elements = await page.evaluate(
                 """() => {
-                    const elem = document.body;
-                    return elem ? elem.innerText.slice(0, 5000) : '';
+                    const elements = [];
+                    document.querySelectorAll('[data-testid]').forEach(el => {
+                        const testid = el.getAttribute('data-testid');
+                        const tag = el.tagName.toLowerCase();
+                        let value = null;
+                        let checked = null;
+
+                        if (tag === 'input' || tag === 'textarea') {
+                            value = el.value;
+                            if (el.type === 'checkbox' || el.type === 'radio') {
+                                checked = el.checked;
+                            }
+                        } else if (tag === 'select') {
+                            value = el.value;
+                        } else if (tag === 'button') {
+                            value = el.innerText;
+                        }
+
+                        elements.push({
+                            testid: testid,
+                            tag: tag,
+                            type: el.type || null,
+                            value: value,
+                            checked: checked,
+                            disabled: el.disabled || false,
+                            placeholder: el.placeholder || null,
+                            text: el.innerText ? el.innerText.slice(0, 100) : null,
+                            className: el.className || null,
+                        });
+                    });
+                    return elements;
                 }"""
             )
 
@@ -175,7 +204,7 @@ class BrowserEngine:
                 data={
                     "url": url,
                     "title": title,
-                    "visible_text": visible_text[:1000],  # Limit text
+                    "elements": dom_elements,
                     "form_data": form_data,
                 }
             )

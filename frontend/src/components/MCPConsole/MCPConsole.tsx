@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Card, Input, Button, Space, Spin, message, Tabs, Empty, AutoComplete } from 'antd';
+import { Card, Input, Button, Space, Spin, Tabs, Empty, AutoComplete, App } from 'antd';
 import { SendOutlined, ClearOutlined, CloseOutlined } from '@ant-design/icons';
 import OperationLog from './OperationLog';
 import ScreenshotViewer from './ScreenshotViewer';
@@ -25,14 +25,15 @@ interface Operation {
 }
 
 const DEMO_PROMPTS = [
-  'Click the reset button and take a screenshot',
-  'Fill in product name as "Laptop" and take a screenshot',
+  'Click the reset button to clear the form',
+  'Fill in product name as "Laptop"',
   'Select "Electronics" from the category dropdown',
   'Fill all fields with sample data and submit the form',
-  'Click reset, then fill product name and take a screenshot',
+  'Click reset and fill in product name',
 ];
 
 const MCPConsole: React.FC<ConsoleProps> = ({ sessionId, onClose }) => {
+  const { message } = App.useApp();
   const [taskInput, setTaskInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [operations, setOperations] = useState<Operation[]>([]);
@@ -59,6 +60,7 @@ const MCPConsole: React.FC<ConsoleProps> = ({ sessionId, onClose }) => {
       for await (const event of streamAiTask(taskInput, sessionId)) {
         setOperations(prev => [...prev, event]);
 
+        // Optional: still support screenshot if returned
         if (event.type === 'screenshot' && event.data) {
           setCurrentScreenshot(event.data);
         }

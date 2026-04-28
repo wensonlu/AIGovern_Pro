@@ -125,3 +125,32 @@
   line-height: 1.4;
   word-break: break-word;
 }
+
+.elements {
+  margin-top: 8px;
+  padding: 8px;
+  background: #fafafa;
+  border-radius: 3px;
+  border: 1px solid #e8e8e8;
+}
+
+.elementsLabel {
+  font-weight: 500;
+  font-size: 11px;
+  color: #595959;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.element {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+  font-size: 11px;
+}
+
+.elementInfo {
+  color: #8c8c8c;
+  font-family: 'Courier New', monospace;
+}

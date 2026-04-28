@@ -14,6 +14,15 @@ interface Operation {
   content?: string;
   task?: string;
   tool_calls?: number;
+  data?: any;
+  elements?: Array<{
+    testid: string;
+    tag: string;
+    type?: string;
+    value?: string;
+    disabled?: boolean;
+    text?: string;
+  }>;
 }
 
 interface OperationLogProps {
@@ -86,6 +95,19 @@ const OperationLog: React.FC<OperationLogProps> = ({ operations }) => {
                 <>
                   <div className={styles.message}>{op.message}</div>
                   {op.error && <div className={styles.error}>{op.error}</div>}
+                  {op.data?.elements && (
+                    <div className={styles.elements}>
+                      <div className={styles.elementsLabel}>Page Elements:</div>
+                      {op.data.elements.map((el: any, i: number) => (
+                        <div key={i} className={styles.element}>
+                          <Tag color="blue">{el.testid}</Tag>
+                          <span className={styles.elementInfo}>
+                            {el.tag} {el.value ? `= "${el.value}"` : ''} {el.disabled ? '(disabled)' : ''}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
 

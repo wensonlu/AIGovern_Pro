@@ -96,21 +96,13 @@ class MCPService:
         llm_client: Any,
         db: Any = None,
     ) -> AsyncIterator[dict]:
-        """Stream AI task execution with tool calls"""
+        """Stream AI task execution with tool calls (DOM-based, no screenshots)"""
         import re
 
         # Create or get session
         state = page_state_manager.get_session(session_id)
         if not state:
             state = page_state_manager.create_session(session_id)
-
-        # Take initial screenshot
-        screenshot_result = await browser_engine.screenshot(session_id)
-        if screenshot_result.success:
-            yield {
-                "type": "screenshot",
-                "data": screenshot_result.data.get("image") if screenshot_result.data else None
-            }
 
         # Emit user task
         yield {
@@ -127,30 +119,38 @@ class MCPService:
             response_text = await llm_client.generate_text(full_prompt, max_tokens=2048)
 
             # Parse tool calls from response (JSON format)
-            tool_pattern = r'\{[^{}]*"tool"[^{}]*\}'
             tool_calls = []
-            for match in re.finditer(tool_pattern, response_text):
-                try:
-                    tool_json = json.loads(match.group())
-                    tool_calls.append(tool_json)
-                except json.JSONDecodeError:
-                    pass
 
-            # If no tool calls found, extract them from code blocks
-            if not tool_calls:
-                code_pattern = r'```(?:json)?\s*\n?([\s\S]*?)\n?```'
-                for match in re.finditer(code_pattern, response_text):
-                    code = match.group(1).strip()
-                    try:
-                        # Try to find JSON objects
-                        for json_match in re.finditer(r'\{[^{}]*"tool"[^{}]*\}', code):
-                            try:
-                                tool_json = json.loads(json_match.group())
-                                tool_calls.append(tool_json)
-                            except json.JSONDecodeError:
-                                pass
-                    except Exception:
-                        pass
+            # Try to extract JSON objects from the response
+            # Handle nested structures by finding matching braces
+            i = 0
+            while i < len(response_text):
+                # Look for opening brace of a JSON object
+                idx = response_text.find('{', i)
+                if idx == -1:
+                    break
+
+                # Try to find the matching closing brace
+                brace_count = 0
+                end_idx = idx
+                for j in range(idx, len(response_text)):
+                    if response_text[j] == '{':
+                        brace_count += 1
+                    elif response_text[j] == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            end_idx = j + 1
+                            break
+
+                # Try to parse as JSON
+                try:
+                    potential_json = response_text[idx:end_idx]
+                    parsed = json.loads(potential_json)
+                    if isinstance(parsed, dict) and "tool" in parsed:
+                        tool_calls.append(parsed)
+                    i = end_idx
+                except (json.JSONDecodeError, ValueError):
+                    i = idx + 1
 
             # Execute tool calls
             tool_calls_count = 0
@@ -177,17 +177,9 @@ class MCPService:
                     "success": result.success,
                     "message": result.message,
                     "error": result.error,
+                    "data": result.data,
                     "sequence": tool_calls_count,
                 }
-
-                # Take screenshot after action
-                screenshot_result = await browser_engine.screenshot(session_id)
-                if screenshot_result.success:
-                    yield {
-                        "type": "screenshot",
-                        "data": screenshot_result.data.get("image") if screenshot_result.data else None,
-                        "sequence": tool_calls_count,
-                    }
 
             # Emit LLM response
             yield {
@@ -212,25 +204,46 @@ class MCPService:
         """Build system prompt with available tools"""
         return """You are an AI assistant that controls a web browser to complete user tasks.
 
+The page has pre-defined interactive elements identified by data-testid attributes:
+- reset-btn: Reset button
+- product-name: Product name input field
+- description: Product description text area
+- category: Category dropdown select
+- price: Price input field
+- quantity: Quantity input field
+- submit-btn: Submit form button
+
 Available tools (format JSON and return in your response):
-1. {"tool": "click", "params": {"selector": "CSS_SELECTOR"}}
-2. {"tool": "input", "params": {"selector": "CSS_SELECTOR", "text": "TEXT"}}
+1. {"tool": "click", "params": {"selector": "[data-testid='ELEMENT_ID']"}}
+   - Use data-testid selectors to click buttons and interactive elements
+
+2. {"tool": "input", "params": {"selector": "[data-testid='ELEMENT_ID']", "text": "TEXT"}}
+   - Fill text into input fields using data-testid
+
 3. {"tool": "navigate", "params": {"url_path": "/path"}}
-4. {"tool": "wait_for_element", "params": {"selector": "CSS_SELECTOR", "timeout_ms": 5000}}
+
+4. {"tool": "wait_for_element", "params": {"selector": "[data-testid='ELEMENT_ID']"}}
+   - Wait for elements to be ready
+
 5. {"tool": "get_page_state", "params": {}}
-6. {"tool": "screenshot", "params": {}}
+   - Get current DOM state with all interactive elements and their values
+   - Returns: elements array with testid, tag, type, value, disabled status, etc.
 
 Instructions:
+- Always start by calling get_page_state to see current element states
+- Use data-testid attributes for selectors (e.g., [data-testid='product-name'])
+- Do NOT take screenshots - use get_page_state to verify element state
 - Think step by step about how to complete the task
-- Use tools to interact with the page
 - Format each tool call as a JSON object on its own line
-- After describing your plan, output the tool calls
-- Always include screenshots to verify results
+- Report results after each action
 
 Example:
-Plan: Click the submit button to send the form
-{"tool": "click", "params": {"selector": "button[type=submit]"}}
-{"tool": "screenshot", "params": {}}
+Plan: Get page state, then fill in product name and click submit
+{"tool": "get_page_state", "params": {}}
+Result: [Check element status - product-name is empty, submit-btn is enabled]
+{"tool": "input", "params": {"selector": "[data-testid='product-name']", "text": "Laptop"}}
+Result: Product name filled successfully
+{"tool": "click", "params": {"selector": "[data-testid='submit-btn']"}}
 Result: Form submitted successfully
 """
 

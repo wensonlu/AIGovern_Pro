@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Space, Button, Input, Spin, message, Card, Tag, Divider, Empty } from 'antd';
+import { Space, Button, Input, Spin, Card, Tag, Divider, Empty, App } from 'antd';
 import { SendOutlined, BgColorsOutlined, BlockOutlined, FormOutlined } from '@ant-design/icons';
 import AppLayout from '../components/Layout';
 import MCPConsole from '../components/MCPConsole/MCPConsole';
@@ -14,6 +14,7 @@ interface DemoElement {
 }
 
 const AIAssistantDemo: React.FC = () => {
+  const { message } = App.useApp();
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const [demoFormData, setDemoFormData] = useState({
     productName: '',
