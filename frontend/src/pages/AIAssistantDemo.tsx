@@ -1,11 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { Layout, Space, Button, Input, Spin, message, Card, Tag, Divider, Empty } from 'antd';
+import { Space, Button, Input, Spin, message, Card, Tag, Divider, Empty } from 'antd';
 import { SendOutlined, BgColorsOutlined, BlockOutlined, FormOutlined } from '@ant-design/icons';
 import AppLayout from '../components/Layout';
 import MCPConsole from '../components/MCPConsole/MCPConsole';
 import styles from './AIAssistantDemo.module.css';
-
-const { Content } = Layout;
 
 interface DemoElement {
   id: string;
@@ -76,7 +74,7 @@ const AIAssistantDemo: React.FC = () => {
 
   return (
     <AppLayout currentMenu="ai-demo">
-      <Content className={styles.content}>
+      <div className={styles.content}>
         <div className={styles.container}>
           {/* Main Content Area */}
           <div className={styles.mainArea}>
@@ -215,7 +213,7 @@ const AIAssistantDemo: React.FC = () => {
             </Button>
           )}
         </div>
-      </Content>
+      </div>
     </AppLayout>
   );
 };
