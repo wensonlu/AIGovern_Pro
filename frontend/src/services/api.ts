@@ -254,7 +254,7 @@ export async function streamChatWithKnowledge(
   let sources: SourceReference[] = [];
   let confidence = 0;
   let timestamp: string | undefined;
-  let sections: any[] = [];  // 结构化输出的 sections
+  const sections: any[] = [];  // 结构化输出的 sections
 
   const consumeLine = (line: string) => {
     if (!line.trim()) return;

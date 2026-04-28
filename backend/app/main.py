@@ -33,8 +33,8 @@ app.add_middleware(
         "http://localhost:3001",
         "http://localhost:5173",
         "https://ai-govern-pro.vercel.app",  # Vercel 生产域名
-        "https://*.vercel.app",  # 允许所有 Vercel 子域名
     ],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

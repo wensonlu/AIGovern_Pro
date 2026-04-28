@@ -44,7 +44,9 @@ function detectContentFormat(content: string): 'text' | 'markdown' | 'html' | 'j
 
       // 否则是普通 JSON
       return 'json';
-    } catch {}
+    } catch {
+      // Ignore JSON parse failures and continue with content-type heuristics.
+    }
   }
 
   // 检测 HTML
