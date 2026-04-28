@@ -190,8 +190,13 @@ class LLMClient:
             response.raise_for_status()
             data = response.json()
             content = data.get("content", [])
-            if content and "text" in content[0]:
-                return content[0]["text"]
+            text_parts = [
+                block["text"]
+                for block in content
+                if isinstance(block, dict) and isinstance(block.get("text"), str)
+            ]
+            if text_parts:
+                return "".join(text_parts)
             raise ValueError(f"无法解析 Anthropic 响应: {data}")
 
     async def generate_embedding(self, text: str) -> list[float]:
