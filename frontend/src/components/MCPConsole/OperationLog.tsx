@@ -13,6 +13,7 @@ interface Operation {
   error?: string;
   content?: string;
   task?: string;
+  tool_calls?: number;
 }
 
 interface OperationLogProps {

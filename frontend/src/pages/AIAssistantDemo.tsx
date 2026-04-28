@@ -75,7 +75,7 @@ const AIAssistantDemo: React.FC = () => {
   };
 
   return (
-    <AppLayout title="AI Assistant Demo">
+    <AppLayout currentMenu="ai-demo">
       <Content className={styles.content}>
         <div className={styles.container}>
           {/* Main Content Area */}
