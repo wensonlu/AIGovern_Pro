@@ -34,7 +34,7 @@ interface StructuredContent {
 const renderListItem = (item: ListItem, depth: number = 0) => {
   const paddingLeft = `${depth * 1.5}rem`;
   return (
-    <div key={item.title} style={{ paddingLeft, marginBottom: '8px' }}>
+    <div key={item.title} style={{ paddingLeft, marginBottom: '4px' }}>
       <strong style={{ display: 'block', marginBottom: '4px' }}>{item.title}</strong>
       {item.details_markdown && (
         <div style={{ marginTop: '4px', marginBottom: '4px', lineHeight: '1.6' }}>
@@ -186,7 +186,7 @@ const StructuredRenderer: React.FC<ContentRendererProps> = ({ content, className
           margin-bottom: 8px;
         }
         .structured-list-item {
-          margin: 4px 0;
+          margin: 2px 0;
         }
       `}</style>
 
@@ -204,9 +204,9 @@ const StructuredRenderer: React.FC<ContentRendererProps> = ({ content, className
                     p: ({ node, ...props }) => <p style={{ marginBottom: '8px', lineHeight: '1.6' }} {...props} />,
                     ul: ({ node, ...props }) => <ul style={{ marginLeft: '2em', marginBottom: '8px', marginTop: '4px' }} {...props} />,
                     ol: ({ node, ...props }) => <ol style={{ marginLeft: '2em', marginBottom: '8px', marginTop: '4px' }} {...props} />,
-                    li: ({ node, ...props }) => <li style={{ marginBottom: '4px', lineHeight: '1.6' }} {...props} />,
+                    li: ({ node, ...props }) => <li style={{ marginBottom: '4px', lineHeight: '1.4' }} {...props} />,
                     strong: ({ node, children, ...props }) => (
-                      <strong style={{ fontWeight: 'bold', color: '#000', backgroundColor: 'transparent', padding: '0' }} {...props}>
+                      <strong style={{ fontWeight: 'bold', backgroundColor: 'transparent', padding: '0' }} {...props}>
                         {children}
                       </strong>
                     ),
@@ -222,7 +222,7 @@ const StructuredRenderer: React.FC<ContentRendererProps> = ({ content, className
               )}
 
               {section.type === 'list_ordered' && (
-                <ol style={{ paddingLeft: '2em' }}>
+                <ol style={{ paddingLeft: '2em', margin: '4px 0 0' }}>
                   {section.items.map((item, i) => (
                     <li key={i} className="structured-list-item">
                       {renderListItem(item)}
@@ -232,7 +232,7 @@ const StructuredRenderer: React.FC<ContentRendererProps> = ({ content, className
               )}
 
               {section.type === 'list_unordered' && (
-                <ul style={{ paddingLeft: '2em' }}>
+                <ul style={{ paddingLeft: '2em', margin: '4px 0 0' }}>
                   {section.items.map((item, i) => (
                     <li key={i} className="structured-list-item">
                       {renderListItem(item)}
