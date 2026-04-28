@@ -11,6 +11,7 @@ const SmartOps = React.lazy(() => import('./pages/SmartOps'))
 const Diagnosis = React.lazy(() => import('./pages/Diagnosis'))
 const Products = React.lazy(() => import('./pages/Products'))
 const AgentSkills = React.lazy(() => import('./pages/AgentSkills'))
+const AIAssistantDemo = React.lazy(() => import('./pages/AIAssistantDemo'))
 
 // Fallback loading component
 const PageLoader: React.FC = () => (
@@ -32,6 +33,7 @@ const App: React.FC = () => {
           <Route path="/diagnosis" element={<Diagnosis />} />
           <Route path="/products" element={<Products />} />
           <Route path="/skills" element={<AgentSkills />} />
+          <Route path="/ai-demo" element={<AIAssistantDemo />} />
         </Routes>
       </Suspense>
       <ChatPanel />

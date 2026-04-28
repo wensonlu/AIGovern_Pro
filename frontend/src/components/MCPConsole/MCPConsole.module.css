@@ -1,0 +1,113 @@
+.console {
+  min-width: 400px;
+  max-width: 100%;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+}
+
+.logContent {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  padding-right: 4px;
+}
+
+.logContent::-webkit-scrollbar {
+  width: 6px;
+}
+
+.logContent::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.logContent::-webkit-scrollbar-thumb {
+  background: #bbb;
+  border-radius: 3px;
+}
+
+.logContent::-webkit-scrollbar-thumb:hover {
+  background: #888;
+}
+
+.operationsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inputSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.input {
+  width: 100%;
+}
+
+.buttonGroup {
+  width: 100%;
+  display: flex;
+  gap: 8px;
+}
+
+.buttonGroup button {
+  flex: 1;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #e6f7ff;
+  border-radius: 4px;
+  margin-top: 8px;
+  color: #0050b3;
+  font-size: 13px;
+}
+
+.tips {
+  margin-top: 12px;
+  padding: 10px;
+  background: #fafafa;
+  border-radius: 4px;
+  border-left: 3px solid #faad14;
+}
+
+.tipTitle {
+  margin: 0 0 8px 0;
+  font-weight: 500;
+  font-size: 12px;
+  color: #595959;
+}
+
+.quickPrompts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quickButton {
+  text-align: left;
+  height: auto;
+  padding: 4px 8px;
+  font-size: 12px;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.quickButton:hover {
+  background: #f0f0f0;
+}

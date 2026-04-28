@@ -5,7 +5,8 @@ from fastapi.staticfiles import StaticFiles
 import os
 import logging
 from app.core.config import settings
-from app.api import documents, chat, query, operations, diagnosis, products
+from app.api import documents, chat, query, operations, diagnosis, products, demo
+from app.services.mcp_service import mcp_service
 
 # 配置日志
 logging.basicConfig(
@@ -24,6 +25,25 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# MCP 服务启动和关闭
+@app.on_event("startup")
+async def startup_mcp():
+    """Initialize MCP service on startup"""
+    try:
+        await mcp_service.initialize()
+        logger.info("MCP service initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize MCP service: {e}")
+
+@app.on_event("shutdown")
+async def shutdown_mcp():
+    """Shutdown MCP service on shutdown"""
+    try:
+        await mcp_service.shutdown()
+        logger.info("MCP service shut down")
+    except Exception as e:
+        logger.error(f"Error shutting down MCP service: {e}")
 
 # CORS 中间件
 app.add_middleware(
@@ -48,6 +68,7 @@ app.include_router(query.router)
 app.include_router(operations.router)
 app.include_router(diagnosis.router)
 app.include_router(products.router)
+app.include_router(demo.router)
 
 
 # 健康检查
