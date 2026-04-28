@@ -56,3 +56,4 @@ tmp/
 
 # Poetry
 poetry.lock
+.vercel
