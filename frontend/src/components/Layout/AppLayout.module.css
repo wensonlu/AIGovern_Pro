@@ -6,6 +6,8 @@
 }
 
 .appLayout.dark {
+  --color-bg-primary: #0f172a;
+  --color-bg-secondary: #1e293b;
   --color-text: #e2e8f0;
   --color-text-secondary: #94a3b8;
   --color-border: #334155;
