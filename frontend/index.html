@@ -8,8 +8,18 @@
     <meta name="theme-color" content="#0f172a" />
     <title>AIGovern Pro - 智管通 AI</title>
     <style>
-      /* 防止FOUC */
-      html {
+      /* 防止FOUC - 立即应用深色主题和CSS变量 */
+      :root {
+        --color-bg-primary: #0f172a;
+        --color-bg-secondary: #1e293b;
+        --color-text-primary: #f1f5f9;
+        --color-accent-cyan: #00d9ff;
+      }
+      html, body, #root {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
         background: #0f172a;
         color: #f1f5f9;
       }
