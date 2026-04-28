@@ -206,7 +206,7 @@ const StructuredRenderer: React.FC<ContentRendererProps> = ({ content, className
                     ol: ({ node, ...props }) => <ol style={{ marginLeft: '2em', marginBottom: '8px', marginTop: '4px' }} {...props} />,
                     li: ({ node, ...props }) => <li style={{ marginBottom: '4px', lineHeight: '1.6' }} {...props} />,
                     strong: ({ node, children, ...props }) => (
-                      <strong style={{ fontWeight: 'bold', color: '#d63384', backgroundColor: 'rgba(214, 51, 132, 0.1)', padding: '0 4px', borderRadius: '2px' }} {...props}>
+                      <strong style={{ fontWeight: 'bold', color: '#000', backgroundColor: 'transparent', padding: '0' }} {...props}>
                         {children}
                       </strong>
                     ),
