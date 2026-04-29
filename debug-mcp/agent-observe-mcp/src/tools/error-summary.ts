@@ -50,6 +50,10 @@ export function createErrorSummaryTool(): Tool {
           enum: ["browser", "python"],
           description: "Target runtime to get error summary from",
         },
+        sessionId: {
+          type: "string",
+          description: "Browser session id from debug_browser_attach (only used when runtime=browser)",
+        },
         timeRange: {
           type: "object",
           properties: {
@@ -73,8 +77,8 @@ export async function handleErrorSummary(args: ErrorSummaryArgs): Promise<ErrorS
   let networkEntries: NetworkEntry[];
 
   if (args.runtime === "browser") {
-    consoleEntries = browserRuntime.getConsoleEntries();
-    networkEntries = browserRuntime.getNetworkEntries();
+    consoleEntries = await browserRuntime.getConsoleEntries(args.sessionId);
+    networkEntries = await browserRuntime.getNetworkEntries(args.sessionId);
   } else {
     [consoleEntries, networkEntries] = await Promise.all([
       pythonRuntime.getConsoleEntries(),

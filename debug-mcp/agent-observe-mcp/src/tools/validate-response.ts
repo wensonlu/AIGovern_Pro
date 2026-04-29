@@ -54,6 +54,10 @@ export function createValidateResponseTool(): Tool {
           enum: ["browser", "python"],
           description: "Target runtime to validate response from",
         },
+        sessionId: {
+          type: "string",
+          description: "Browser session id from debug_browser_attach (only used when runtime=browser)",
+        },
         expectedFields: {
           type: "array",
           items: { type: "string" },
@@ -80,7 +84,7 @@ export async function handleValidateResponse(
   let entries: NetworkEntry[];
 
   if (args.runtime === "browser") {
-    entries = browserRuntime.getNetworkEntries();
+    entries = await browserRuntime.getNetworkEntries(args.sessionId);
   } else {
     entries = await pythonRuntime.getNetworkEntries();
   }

@@ -71,12 +71,14 @@ export interface TimeRange {
 
 export interface ConsoleSnapshotArgs {
   runtime: Runtime;
+  sessionId?: string;
   timeRange?: TimeRange;
   level?: ConsoleLevel;
 }
 
 export interface NetworkSnapshotArgs {
   runtime: Runtime;
+  sessionId?: string;
   timeRange?: TimeRange;
   urlPattern?: string;
   status?: number;
@@ -84,29 +86,43 @@ export interface NetworkSnapshotArgs {
 
 export interface ErrorSummaryArgs {
   runtime: Runtime;
+  sessionId?: string;
   timeRange?: TimeRange;
 }
 
 export interface ValidateResponseArgs {
   runtime: Runtime;
+  sessionId?: string;
   expectedFields: string[];
   responseId?: string;
 }
 
 export interface CheckErrorsArgs {
   runtime: Runtime;
+  sessionId?: string;
   expectedErrors: string[];
 }
 
 export interface AssertNetworkArgs {
   runtime: Runtime;
+  sessionId?: string;
   url: string;
   expectedStatus: number;
 }
 
 export interface CollectAllArgs {
   runtime: Runtime;
+  sessionId?: string;
   timeRange?: TimeRange;
+}
+
+export interface BrowserAttachArgs {
+  url: string;
+  cdpEndpoint?: string;
+}
+
+export interface BrowserDetachArgs {
+  sessionId: string;
 }
 
 // --- Tool Result Types ---
@@ -165,4 +181,15 @@ export interface CollectAllResult {
     errorCount: number;
     networkFailCount: number;
   };
+}
+
+export interface BrowserAttachResult {
+  sessionId: string;
+  attachedUrl: string;
+  cdpEndpoint?: string;
+}
+
+export interface BrowserDetachResult {
+  sessionId: string;
+  detached: boolean;
 }

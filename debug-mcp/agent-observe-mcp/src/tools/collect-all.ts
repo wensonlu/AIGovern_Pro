@@ -49,6 +49,10 @@ export function createCollectAllTool(): Tool {
           enum: ["browser", "python"],
           description: "Target runtime to collect all data from",
         },
+        sessionId: {
+          type: "string",
+          description: "Browser session id from debug_browser_attach (only used when runtime=browser)",
+        },
         timeRange: {
           type: "object",
           properties: {
@@ -72,8 +76,8 @@ export async function handleCollectAll(args: CollectAllArgs): Promise<CollectAll
   let networkEntries: NetworkEntry[];
 
   if (args.runtime === "browser") {
-    consoleEntries = browserRuntime.getConsoleEntries();
-    networkEntries = browserRuntime.getNetworkEntries();
+    consoleEntries = await browserRuntime.getConsoleEntries(args.sessionId);
+    networkEntries = await browserRuntime.getNetworkEntries(args.sessionId);
   } else {
     [consoleEntries, networkEntries] = await Promise.all([
       pythonRuntime.getConsoleEntries(),

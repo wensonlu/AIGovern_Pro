@@ -612,6 +612,39 @@ print("请求完成:", response.status_code)
 
 MCP Server 通过 `http://127.0.0.1:9310` 调用 Python SDK 获取数据，无需直接操作 Python 进程。
 
+### 4.8 浏览器接入方案调研（新增）
+
+针对「MCP 采集页面」与「开发者实际操作页面」不一致的问题，评估两种接入模式：
+
+| 方案 | 描述 | 优势 | 劣势 | 适用场景 |
+|------|------|------|------|---------|
+| 方案 A：`headless: false`（MCP 自启可视浏览器） | MCP 启动 Playwright 可见窗口，用户在该窗口复现问题 | 实现简单；可控性强；不依赖外部浏览器启动参数 | 用户需切到新窗口操作；与日常开发窗口割裂；多窗口切换成本高 | 演示环境、单人调试、快速 PoC |
+| 方案 B：`cdpEndpoint`（接入用户已打开 Chrome） | MCP 通过 CDP 连接开发者现有浏览器，复用当前页面会话 | 与真实操作完全一致；可抓当前窗口请求；减少上下文切换 | 接入复杂度更高；依赖 Chrome 启动参数（remote debugging）；权限与稳定性治理更复杂 | 日常开发联调、真实故障复现、团队协作场景 |
+
+#### 关键维度对比
+
+| 维度 | 方案 A：`headless: false` | 方案 B：`cdpEndpoint` |
+|------|---------------------------|-----------------------|
+| 复现真实用户路径 | 中 | 高 |
+| 接入门槛 | 低 | 中 |
+| 维护成本 | 低 | 中高 |
+| 调试准确性（抓到“当前窗口”） | 中 | 高 |
+| 对开发习惯侵入 | 中高 | 低 |
+
+#### 推荐结论
+
+采用 **“B 为主，A 为兜底”** 的双模式策略：
+
+1. 默认推荐 `cdpEndpoint`，优先接入开发者当前 Chrome 窗口，保证数据与真实操作一致。  
+2. 当用户无法提供 CDP 入口（受安全策略或环境限制）时，回退到 `headless: false` 可视窗口模式。  
+3. MCP 工具层统一保持 `sessionId` 抽象，避免上层调用感知底层接入差异。  
+
+#### 落地建议
+
+1. `debug_browser_attach` 支持参数：`url` + `cdpEndpoint`（可选）。  
+2. 传入 `cdpEndpoint` 时优先绑定已存在页面；未传时由 MCP 管理浏览器实例。  
+3. 文档与示例中明确两种启动方式，避免“已复现但抓不到请求”的使用误区。  
+
 ---
 
 ## 五、运营 MCP（二期待实现）
@@ -680,7 +713,7 @@ debug_monitor_stop(sessionId)
 | MCP Server 运行时 | Node.js 20+ |
 | MCP 协议入口 | @modelcontextprotocol/sdk（StdioServerTransport） |
 | 浏览器自动化 | Playwright 1.x |
-| Python 版本 | Python 3.10+ |
+| Python 版本 | Python 3.9+ |
 | Python HTTP Client | httpx + requests |
 | Python SDK 通信 | HTTP Server（port 9310） |
 | 输出格式 | 统一 JSON |
@@ -700,3 +733,38 @@ debug_monitor_stop(sessionId)
 | 2 | 浏览器自动化框架 | ✅ 已确认：Playwright |
 | 3 | 运营 MCP 具体场景和工具需求 | ⏳ 待确认（二期待定） |
 | 4 | CI/CD 集成需求（Jenkins/GitHub Actions） | ⏳ 待确认 |
+
+---
+
+## 十、编码后自测验收 SOP（新增）
+
+目标：每次代码改动后，在本地联调阶段通过 MCP 主动发现前端报错、接口异常与返回结构偏差。
+
+### 10.1 标准流程（每次改动后执行）
+
+1. `debug_browser_attach`（优先方案 B：`cdpEndpoint`）建立会话并获取 `sessionId`。  
+2. 在前端执行本次改动相关的关键用户路径（手动触发）。  
+3. `debug_console_snapshot(runtime=browser, level=error, sessionId=...)` 检查控制台错误。  
+4. `debug_error_summary(runtime=browser, sessionId=...)` 检查 console/network 汇总异常。  
+5. 对关键接口执行：
+   - `debug_network_snapshot`（按 urlPattern/status 过滤）  
+   - `debug_validate_response`（校验返回字段）  
+6. `debug_browser_detach(sessionId=...)` 清理会话。
+
+### 10.2 验收结论模板（固定输出）
+
+每次自测输出统一包含以下 4 项：
+
+1. `Console`：是否存在 `error`（如有，列出前 3 条）  
+2. `Network`：关键接口状态码与失败请求数  
+3. `Schema`：关键接口返回字段是否符合预期  
+4. `Verdict`：`PASS/FAIL` + 下一步建议
+
+### 10.3 失败判定（建议）
+
+满足任一条件即判定为 `FAIL`：
+
+1. Console 中出现未预期 `error` 日志；  
+2. 关键接口出现 `4xx/5xx`；  
+3. `validate_response` 出现必填字段缺失；  
+4. 流式接口未出现结束事件（如 `done`）。

@@ -48,6 +48,10 @@ export function createCheckErrorsTool(): Tool {
           enum: ["browser", "python"],
           description: "Target runtime to check errors from",
         },
+        sessionId: {
+          type: "string",
+          description: "Browser session id from debug_browser_attach (only used when runtime=browser)",
+        },
         expectedErrors: {
           type: "array",
           items: { type: "string" },
@@ -68,7 +72,7 @@ export async function handleCheckErrors(args: CheckErrorsArgs): Promise<CheckErr
   let consoleEntries: ConsoleEntry[];
 
   if (args.runtime === "browser") {
-    consoleEntries = browserRuntime.getConsoleEntries();
+    consoleEntries = await browserRuntime.getConsoleEntries(args.sessionId);
   } else {
     consoleEntries = await pythonRuntime.getConsoleEntries();
   }

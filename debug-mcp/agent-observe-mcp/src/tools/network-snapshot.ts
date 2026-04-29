@@ -29,6 +29,10 @@ export function createNetworkSnapshotTool(): Tool {
           enum: ["browser", "python"],
           description: "Target runtime to capture network from",
         },
+        sessionId: {
+          type: "string",
+          description: "Browser session id from debug_browser_attach (only used when runtime=browser)",
+        },
         timeRange: {
           type: "object",
           properties: {
@@ -61,7 +65,7 @@ export async function handleNetworkSnapshot(
   let entries: NetworkEntry[];
 
   if (args.runtime === "browser") {
-    entries = browserRuntime.getNetworkEntries();
+    entries = await browserRuntime.getNetworkEntries(args.sessionId);
   } else {
     entries = await pythonRuntime.getNetworkEntries();
   }

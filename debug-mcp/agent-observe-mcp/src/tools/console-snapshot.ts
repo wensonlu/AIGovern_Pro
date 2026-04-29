@@ -29,6 +29,10 @@ export function createConsoleSnapshotTool(): Tool {
           enum: ["browser", "python"],
           description: "Target runtime to capture console from",
         },
+        sessionId: {
+          type: "string",
+          description: "Browser session id from debug_browser_attach (only used when runtime=browser)",
+        },
         timeRange: {
           type: "object",
           properties: {
@@ -59,7 +63,7 @@ export async function handleConsoleSnapshot(
   let entries: ConsoleEntry[];
 
   if (args.runtime === "browser") {
-    entries = browserRuntime.getConsoleEntries();
+    entries = await browserRuntime.getConsoleEntries(args.sessionId);
   } else {
     entries = await pythonRuntime.getConsoleEntries();
   }

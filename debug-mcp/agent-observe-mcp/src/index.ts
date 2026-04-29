@@ -39,6 +39,14 @@ import {
   createCollectAllTool,
   handleCollectAll,
 } from "./tools/collect-all.js";
+import {
+  createBrowserAttachTool,
+  handleBrowserAttach,
+} from "./tools/browser-attach.js";
+import {
+  createBrowserDetachTool,
+  handleBrowserDetach,
+} from "./tools/browser-detach.js";
 
 import type {
   ConsoleSnapshotArgs,
@@ -48,6 +56,8 @@ import type {
   CheckErrorsArgs,
   AssertNetworkArgs,
   CollectAllArgs,
+  BrowserAttachArgs,
+  BrowserDetachArgs,
 } from "./types/index.js";
 
 // Create server instance
@@ -56,10 +66,12 @@ const server = new Server(
   { capabilities: { tools: {} } }
 );
 
-// Register all 7 tools
+// Register all tools
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
+      createBrowserAttachTool(),
+      createBrowserDetachTool(),
       createConsoleSnapshotTool(),
       createNetworkSnapshotTool(),
       createErrorSummaryTool(),
@@ -73,6 +85,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 // Tool name to handler mapping
 const toolHandlers: Record<string, (args: unknown) => Promise<unknown>> = {
+  debug_browser_attach: (args) => handleBrowserAttach(args as BrowserAttachArgs),
+  debug_browser_detach: (args) => handleBrowserDetach(args as BrowserDetachArgs),
   debug_console_snapshot: (args) => handleConsoleSnapshot(args as ConsoleSnapshotArgs),
   debug_network_snapshot: (args) => handleNetworkSnapshot(args as NetworkSnapshotArgs),
   debug_error_summary: (args) => handleErrorSummary(args as ErrorSummaryArgs),
