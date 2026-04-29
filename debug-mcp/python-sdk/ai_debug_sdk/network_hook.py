@@ -32,11 +32,15 @@ class NetworkHook:
     def __init__(self, collector: Collector):
         self._collector = collector
         self._original_httpx_request = None
+        self._original_httpx_async_request = None
         self._original_requests_request = None
+        self._original_requests_session_request = None
         self._enabled = False
     
     def install(self):
         """Install network hooks for httpx and requests."""
+        if self._enabled:
+            return
         if _requests_installed:
             self._install_requests_hook()
         if _httpx_installed:
@@ -47,8 +51,12 @@ class NetworkHook:
         """Remove network hooks."""
         if _requests_installed and self._original_requests_request:
             requests.api.request = self._original_requests_request  # type: ignore
+        if _requests_installed and self._original_requests_session_request:
+            requests.Session.request = self._original_requests_session_request  # type: ignore
         if _httpx_installed and self._original_httpx_request:
             httpx.Client.request = self._original_httpx_request  # type: ignore
+        if _httpx_installed and self._original_httpx_async_request:
+            httpx.AsyncClient.request = self._original_httpx_async_request  # type: ignore
         self._enabled = False
     
     def _install_requests_hook(self):
@@ -90,30 +98,48 @@ class NetworkHook:
                 response_time = int((time.time() - start_time) * 1000)
                 self._record_response(response, method, response_time, headers, body)
                 return response
-            
+            self._original_requests_session_request = original_session_request
             requests.Session.request = hooked_session_request  # type: ignore
     
     def _install_httpx_hook(self):
         """Hook into httpx library."""
         original_request = httpx.Client.request
-        
+        original_async_request = httpx.AsyncClient.request
+
+        def hooked_request(self, method, url, **kwargs):
+            start_time = time.time()
+            headers = kwargs.get("headers", {})
+            content = kwargs.get("content")
+
+            try:
+                response = original_request(self, method, url, **kwargs)
+            except Exception as e:
+                self._record_error(str(url), method, 0, str(e), headers, content)
+                raise
+
+            response_time = int((time.time() - start_time) * 1000)
+            self._record_httpx_response(response, method, response_time, headers, content)
+            return response
+
         async def hooked_request_async(self, method, url, **kwargs):
             start_time = time.time()
             headers = kwargs.get("headers", {})
             content = kwargs.get("content")
-            
+
             try:
-                response = await original_request(self, method, url, **kwargs)
+                response = await original_async_request(self, method, url, **kwargs)
             except Exception as e:
                 self._record_error(str(url), method, 0, str(e), headers, content)
                 raise
-            
+
             response_time = int((time.time() - start_time) * 1000)
             self._record_httpx_response(response, method, response_time, headers, content)
             return response
-        
+
         self._original_httpx_request = original_request
-        httpx.Client.request = hooked_request_async  # type: ignore
+        self._original_httpx_async_request = original_async_request
+        httpx.Client.request = hooked_request  # type: ignore
+        httpx.AsyncClient.request = hooked_request_async  # type: ignore
     
     def _record_response(self, response, method: str, response_time: int, request_headers: dict, request_body: Any):
         """Record a requests response."""

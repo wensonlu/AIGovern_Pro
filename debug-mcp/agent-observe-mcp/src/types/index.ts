@@ -1,4 +1,4 @@
-// AI Debug MCP Type Definitions
+// Agent Observe MCP Type Definitions
 // Following SPEC.md Section 4.3
 
 export type Runtime = "browser" | "python";

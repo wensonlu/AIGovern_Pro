@@ -1,4 +1,4 @@
-// Logger utility for AI Debug MCP
+// Logger utility for Agent Observe MCP
 
 export enum LogLevel {
   DEBUG = "debug",

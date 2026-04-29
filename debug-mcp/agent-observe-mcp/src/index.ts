@@ -1,4 +1,4 @@
-// AI Debug MCP Server - Main Entry Point
+// Agent Observe MCP Server - Main Entry Point
 // Following SPEC.md Section 4.2
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -52,11 +52,11 @@ import type {
 
 // Create server instance
 const server = new Server(
-  { name: "ai-debug-mcp", version: "0.1.0" },
+  { name: "agent-observe-mcp", version: "0.1.0" },
   { capabilities: { tools: {} } }
 );
 
-// Register all 8 tools
+// Register all 7 tools
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
@@ -129,12 +129,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
 
 // Start the server
 async function main() {
-  logger.info("Starting AI Debug MCP Server...");
+  logger.info("Starting Agent Observe MCP Server...");
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  logger.info("AI Debug MCP Server connected and ready");
+  logger.info("Agent Observe MCP Server connected and ready");
 }
 
 main().catch((err) => {

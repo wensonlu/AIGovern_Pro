@@ -20,9 +20,12 @@ class ConsoleHook:
         self._original_excepthook = None
         self._original_write = None
         self._original_flush = None
+        self._installed = False
         
     def install(self):
         """Install console hooks (redirect print, capture logging)."""
+        if self._installed:
+            return
         # Capture stdout write
         self._original_write = sys.stdout.write
         self._original_flush = sys.stdout.flush
@@ -56,9 +59,12 @@ class ConsoleHook:
         # Hook into sys.excepthook to catch unhandled exceptions
         self._original_excepthook = sys.excepthook
         sys.excepthook = self._hooked_excepthook
+        self._installed = True
     
     def uninstall(self):
         """Remove console hooks."""
+        if not self._installed:
+            return
         if self._original_write:
             sys.stdout.write = self._original_write  # type: ignore
         if hasattr(self, "_original_stderr_write"):
@@ -72,6 +78,7 @@ class ConsoleHook:
         
         if self._original_excepthook:
             sys.excepthook = self._original_excepthook
+        self._installed = False
     
     def _capture_text(self, text: str, stream: str):
         """Capture text written to stdout/stderr."""

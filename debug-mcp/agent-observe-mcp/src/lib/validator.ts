@@ -1,4 +1,4 @@
-// Validator utility for AI Debug MCP
+// Validator utility for Agent Observe MCP
 
 import type {
   Runtime,

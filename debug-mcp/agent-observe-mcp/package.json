@@ -1,7 +1,7 @@
 {
-  "name": "agent-debug-mcp",
+  "name": "agent-observe-mcp",
   "version": "0.1.0",
-  "description": "AI Debug MCP - Browser and Python Debugging Tools for AI Agents",
+  "description": "Agent Observe MCP - Browser and Python Debugging Tools for AI Agents",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -16,7 +16,7 @@
     }
   },
   "bin": {
-    "agent-debug-mcp": "dist/index.js"
+    "agent-observe-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -48,12 +48,12 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/your-org/AIGovern_Pro.git",
-    "directory": "agent-debug-mcp"
+    "directory": "agent-observe-mcp"
   },
   "bugs": {
     "url": "https://github.com/your-org/AIGovern_Pro/issues"
   },
-  "author": "AIGovern_Pro Contributors",
+  "author": "AIGovern Contributors",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
