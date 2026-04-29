@@ -15,7 +15,7 @@
 - Exposes a local HTTP API (port 9310) for the MCP server to query collected data
 - Requires **zero configuration** — just `import ai_debug_sdk`
 
-Used together with the [ai-debug-mcp](https://github.com/your-org/ai-debug-mcp) Node.js server, AI agents can inspect Python script behavior through the same 8 MCP tools.
+Used together with the [agent-debug-mcp](https://github.com/your-org/agent-debug-mcp) Node.js server, AI agents can inspect Python script behavior through the same 8 MCP tools.
 
 ## Requirements
 
@@ -332,11 +332,11 @@ curl http://127.0.0.1:9310/health
 
 ## MCP Server Integration
 
-The Python SDK is designed to work with the **ai-debug-mcp** Node.js MCP server. The integration architecture:
+The Python SDK is designed to work with the **agent-debug-mcp** Node.js MCP server. The integration architecture:
 
 ```
 ┌─────────────────┐      MCP stdio       ┌──────────────────────────┐
-│  AI Agent       │ ◄──────────────────► │  ai-debug-mcp (Node.js)   │
+│  AI Agent       │ ◄──────────────────► │  agent-debug-mcp (Node.js)   │
 │  (Claude Code)  │                      │  - routes MCP calls        │
 └─────────────────┘                      │  - calls Python HTTP API   │
                                           └──────────┬───────────────┘
@@ -363,7 +363,7 @@ import requests
 response = requests.get("https://api.example.com/api/data")
 ```
 
-2. Configure ai-debug-mcp to connect to the Python runtime. The MCP server's `python-runtime.ts` polls `http://127.0.0.1:9310` for data.
+2. Configure agent-debug-mcp to connect to the Python runtime. The MCP server's `python-runtime.ts` polls `http://127.0.0.1:9310` for data.
 
 ---
 

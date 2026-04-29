@@ -20,24 +20,24 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: ai-debug-mcp/package-lock.json
+          cache-dependency-path: agent-debug-mcp/package-lock.json
 
       - name: Install dependencies
         run: npm install
-        working-directory: ai-debug-mcp
+        working-directory: agent-debug-mcp
 
       - name: Type check
         run: npx tsc --noEmit
-        working-directory: ai-debug-mcp
+        working-directory: agent-debug-mcp
 
       - name: Run tests
         run: npm test
-        working-directory: ai-debug-mcp
+        working-directory: agent-debug-mcp
 
       - name: Build
         run: npm run build
-        working-directory: ai-debug-mcp
+        working-directory: agent-debug-mcp
 
       - name: Verify dist output
         run: test -f dist/index.js && test -f dist/types/index.d.ts
-        working-directory: ai-debug-mcp
+        working-directory: agent-debug-mcp

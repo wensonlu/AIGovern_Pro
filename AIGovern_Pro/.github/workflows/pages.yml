@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - "ai-debug-mcp/src/**"
-      - "ai-debug-mcp/README.md"
+      - "agent-debug-mcp/src/**"
+      - "agent-debug-mcp/README.md"
       - "python-sdk/**/*.py"
       - "python-sdk/README.md"
 
@@ -30,15 +30,15 @@ jobs:
 
       - name: Install dependencies
         run: npm install
-        working-directory: ai-debug-mcp
+        working-directory: agent-debug-mcp
 
       - name: Install JSDoc
         run: npm install --save-dev jsdoc
-        working-directory: ai-debug-mcp
+        working-directory: agent-debug-mcp
 
       - name: Generate JSDoc
         run: npx jsdoc -r src --destination docs/jsdoc
-        working-directory: ai-debug-mcp
+        working-directory: agent-debug-mcp
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -46,4 +46,4 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ai-debug-mcp/docs/jsdoc
+          path: agent-debug-mcp/docs/jsdoc
