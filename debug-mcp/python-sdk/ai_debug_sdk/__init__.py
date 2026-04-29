@@ -11,6 +11,10 @@ Usage:
     ai_debug_sdk.enable()
 """
 
+from __future__ import annotations
+
+from typing import Optional
+
 from .collector import Collector
 from .console_hook import ConsoleHook
 from .network_hook import NetworkHook
@@ -38,7 +42,7 @@ def disable():
     _network_hook.uninstall()
 
 
-def get_console_entries(since: int | None = None) -> list[dict]:
+def get_console_entries(since: Optional[int] = None) -> list[dict]:
     """Get console log entries, optionally filtered by timestamp.
     
     Args:
@@ -51,7 +55,7 @@ def get_console_entries(since: int | None = None) -> list[dict]:
     return _collector.get_console(since=since)
 
 
-def get_network_entries(since: int | None = None) -> list[dict]:
+def get_network_entries(since: Optional[int] = None) -> list[dict]:
     """Get network request entries, optionally filtered by timestamp.
     
     Args:

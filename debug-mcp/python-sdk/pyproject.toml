@@ -24,13 +24,14 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Debuggers",
     "Topic :: Software Development :: Testing",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 dependencies = [
     "httpx>=0.27.0",
     "requests>=2.32.0",
