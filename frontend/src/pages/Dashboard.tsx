@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Card, Row, Col, Space, Button, Skeleton } from 'antd';
+import { Card, Row, Col, Space, Button, Skeleton, message } from 'antd';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import AppLayout from '../components/Layout';
 import styles from './Dashboard.module.css';
@@ -70,6 +70,30 @@ const CATEGORY_DATA = [
 const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
+  // Demo-only debug action: uses chat endpoint for MCP debugging walkthrough.
+  const handleDebugRequest = async () => {
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: '最近7天订单趋势如何？',
+          session_id: 'dashboard_debug',
+          top_k: 3,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      const data = await res.json();
+      console.log('Debug API result:', data);
+      message.success('调试请求成功（见控制台）');
+    } catch (err) {
+      console.error('Debug API error:', err);
+      message.error(`调试请求失败：${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   // Simulate initial loading
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 500);
@@ -90,8 +114,11 @@ const Dashboard: React.FC = () => {
       <div className={styles.pageContainer}>
         {/* 页面标题 */}
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>仪表板</h1>
-          <span className={styles.pageSubtitle}>实时企业经营数据监控中枢</span>
+          <div>
+            <h1 className={styles.pageTitle}>仪表板</h1>
+            <span className={styles.pageSubtitle}>实时企业经营数据监控中枢</span>
+          </div>
+          <Button onClick={handleDebugRequest}>调试按钮（演示）</Button>
         </div>
 
         {loading ? (

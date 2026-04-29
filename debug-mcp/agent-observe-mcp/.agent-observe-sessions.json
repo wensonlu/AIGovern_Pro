@@ -1,0 +1,88 @@
+[
+  {
+    "sessionId": "f3561596-0d17-4fba-9d15-d37c39c6bcc5",
+    "attachedUrl": "http://127.0.0.1:3001",
+    "updatedAt": 1777454021479
+  },
+  {
+    "sessionId": "3f7c8b86-2847-4f68-b918-009538e69d4d",
+    "attachedUrl": "http://127.0.0.1:3001",
+    "updatedAt": 1777457378802
+  },
+  {
+    "sessionId": "85fae125-6234-4780-b208-e19f5dacb585",
+    "attachedUrl": "http://127.0.0.1:3001",
+    "updatedAt": 1777457477349
+  },
+  {
+    "sessionId": "a5687348-a5b1-4324-b209-b5de76f2ecfc",
+    "attachedUrl": "http://127.0.0.1:3001",
+    "updatedAt": 1777457596027
+  },
+  {
+    "sessionId": "81d200e3-9daa-48e7-ab0a-17226e52c374",
+    "attachedUrl": "http://127.0.0.1:3001",
+    "cdpEndpoint": "http://127.0.0.1:9222",
+    "updatedAt": 1777458036992
+  },
+  {
+    "sessionId": "7cebf0b2-f262-49f0-8961-fdb6c73df18e",
+    "attachedUrl": "http://127.0.0.1:3001",
+    "cdpEndpoint": "http://127.0.0.1:9222",
+    "updatedAt": 1777458346381
+  },
+  {
+    "sessionId": "911d205d-c130-4d24-be90-05bd391410a1",
+    "attachedUrl": "http://127.0.0.1:3001",
+    "cdpEndpoint": "http://127.0.0.1:9222",
+    "updatedAt": 1777458379645
+  },
+  {
+    "sessionId": "1d5b2246-d188-4738-a13d-16a7cfd30e0c",
+    "attachedUrl": "http://127.0.0.1:3001",
+    "cdpEndpoint": "http://127.0.0.1:9222",
+    "updatedAt": 1777458481224
+  },
+  {
+    "sessionId": "afea1746-0af4-4152-af61-20a406b1af93",
+    "attachedUrl": "http://127.0.0.1:3001",
+    "cdpEndpoint": "http://127.0.0.1:9222",
+    "updatedAt": 1777458512784
+  },
+  {
+    "sessionId": "98c39a2c-709c-4b89-9cda-2df75ca949c6",
+    "attachedUrl": "http://127.0.0.1:3001",
+    "cdpEndpoint": "http://127.0.0.1:9222",
+    "updatedAt": 1777458552232
+  },
+  {
+    "sessionId": "92ef5fd1-962c-44dc-b398-b845f2e99d21",
+    "attachedUrl": "http://127.0.0.1:3001",
+    "cdpEndpoint": "http://127.0.0.1:9222",
+    "updatedAt": 1777458589025
+  },
+  {
+    "sessionId": "6103e0b8-b20c-4a3f-91bc-6e59c1039e9f",
+    "attachedUrl": "http://127.0.0.1:3001",
+    "cdpEndpoint": "http://127.0.0.1:9222",
+    "updatedAt": 1777458837419
+  },
+  {
+    "sessionId": "61d0fe86-1284-4feb-8a5a-04b32610b32b",
+    "attachedUrl": "http://127.0.0.1:3001",
+    "cdpEndpoint": "http://127.0.0.1:9222",
+    "updatedAt": 1777458859630
+  },
+  {
+    "sessionId": "463e6d3f-b923-4f85-ae27-9a8e2b2fe342",
+    "attachedUrl": "http://127.0.0.1:3001",
+    "cdpEndpoint": "http://127.0.0.1:9222",
+    "updatedAt": 1777458988445
+  },
+  {
+    "sessionId": "6ea44d5b-c013-49c5-8bc4-558a1399cc8d",
+    "attachedUrl": "http://127.0.0.1:3001",
+    "cdpEndpoint": "http://127.0.0.1:9222",
+    "updatedAt": 1777459014730
+  }
+]
