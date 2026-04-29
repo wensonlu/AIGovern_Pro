@@ -1,0 +1,49 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ai-debug-mcp/src/**"
+      - "ai-debug-mcp/README.md"
+      - "python-sdk/**/*.py"
+      - "python-sdk/README.md"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-docs:
+    name: Build JSDoc Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: ai-debug-mcp
+
+      - name: Install JSDoc
+        run: npm install --save-dev jsdoc
+        working-directory: ai-debug-mcp
+
+      - name: Generate JSDoc
+        run: npx jsdoc -r src --destination docs/jsdoc
+        working-directory: ai-debug-mcp
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ai-debug-mcp/docs/jsdoc

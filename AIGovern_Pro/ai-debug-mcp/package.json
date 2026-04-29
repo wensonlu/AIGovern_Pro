@@ -1,14 +1,60 @@
 {
   "name": "ai-debug-mcp",
   "version": "0.1.0",
-  "description": "AI Debug MCP - Browser and Python Debugging Tools",
+  "description": "AI Debug MCP - Browser and Python Debugging Tools for AI Agents",
   "type": "module",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./runtimes/browser-runtime": {
+      "types": "./dist/runtimes/browser-runtime.d.ts",
+      "import": "./dist/runtimes/browser-runtime.js"
+    }
+  },
+  "bin": {
+    "ai-debug-mcp": "dist/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit"
   },
+  "keywords": [
+    "mcp",
+    "debug",
+    "ai",
+    "playwright",
+    "browser",
+    "devtools",
+    "console",
+    "network",
+    "monitoring",
+    "claude",
+    "cursor",
+    "agent"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist/"
+  ],
+  "homepage": "https://github.com/your-org/AIGovern_Pro#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/AIGovern_Pro.git",
+    "directory": "ai-debug-mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/AIGovern_Pro/issues"
+  },
+  "author": "AIGovern_Pro Contributors",
+  "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "playwright": "^1.50.0"
