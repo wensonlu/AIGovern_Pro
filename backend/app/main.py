@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 import logging
 from app.core.config import settings
-from app.api import documents, chat, query, operations, diagnosis, products, demo
+from app.api import documents, chat, query, operations, diagnosis, products, demo, assistant
 from app.services.mcp_service import mcp_service
 
 # 配置日志
@@ -69,6 +69,7 @@ app.include_router(operations.router)
 app.include_router(diagnosis.router)
 app.include_router(products.router)
 app.include_router(demo.router)
+app.include_router(assistant.router)
 
 
 # 健康检查

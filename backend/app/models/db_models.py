@@ -132,3 +132,72 @@ class ProductPriceHistory(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     product = relationship("Product")
+
+
+class AssistantSession(Base):
+    """AI 助手会话表"""
+
+    __tablename__ = "assistant_sessions"
+
+    id = Column(String(64), primary_key=True, index=True)
+    tenant_id = Column(String(100), nullable=False, index=True)
+    user_id = Column(String(100), nullable=False, index=True)
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class AssistantMessage(Base):
+    """AI 助手消息表"""
+
+    __tablename__ = "assistant_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String(64), nullable=False, index=True)
+    role = Column(String(20), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class AssistantToolCall(Base):
+    """AI 助手工具调用记录"""
+
+    __tablename__ = "assistant_tool_calls"
+
+    id = Column(String(64), primary_key=True, index=True)
+    session_id = Column(String(64), nullable=False, index=True)
+    tenant_id = Column(String(100), nullable=False, index=True)
+    user_id = Column(String(100), nullable=False, index=True)
+    tool_name = Column(String(100), nullable=False)
+    input_json = Column(JSON, nullable=False)
+    output_json = Column(JSON, nullable=True)
+    status = Column(String(32), nullable=False, index=True)
+    latency_ms = Column(Integer, nullable=True)
+    error_code = Column(String(64), nullable=True)
+    error_message = Column(String(1000), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class AssistantApproval(Base):
+    """AI 助手审批记录"""
+
+    __tablename__ = "assistant_approvals"
+
+    id = Column(String(64), primary_key=True, index=True)
+    tool_call_id = Column(String(64), nullable=False, index=True)
+    risk_level = Column(String(20), nullable=False)
+    approved_by = Column(String(100), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    status = Column(String(32), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class AssistantAuditEvent(Base):
+    """AI 助手审计事件"""
+
+    __tablename__ = "assistant_audit_events"
+
+    id = Column(String(64), primary_key=True, index=True)
+    tenant_id = Column(String(100), nullable=False, index=True)
+    session_id = Column(String(64), nullable=False, index=True)
+    event_type = Column(String(100), nullable=False)
+    payload_json = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

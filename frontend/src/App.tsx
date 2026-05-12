@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Spin } from 'antd'
 import ChatPanel from './components/AGUI/ChatPanel'
 
@@ -34,6 +34,7 @@ const App: React.FC = () => {
           <Route path="/products" element={<Products />} />
           <Route path="/skills" element={<AgentSkills />} />
           <Route path="/ai-demo" element={<AIAssistantDemo />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
       <ChatPanel />

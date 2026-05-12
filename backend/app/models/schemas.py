@@ -235,3 +235,76 @@ class StructuredChatResponse(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.now, description="时间戳")
     intent: str = Field(default="knowledge_qa", description="识别到的用户意图")
     workflow: list[WorkflowStep] = Field(default_factory=list, description="处理工作流")
+
+
+# ==================== Assistant 工具调用相关 ====================
+
+AssistantToolName = Literal["read_sql", "generate_chart_data", "create_followup_task"]
+AssistantApprovalStatus = Literal["pending", "approved", "rejected"]
+AssistantToolCallStatus = Literal[
+    "draft",
+    "pending_approval",
+    "approved",
+    "rejected",
+    "executing",
+    "succeeded",
+    "failed",
+]
+
+
+class AssistantSessionCreateRequest(BaseModel):
+    tenant_id: str = Field(..., min_length=1, max_length=100)
+    user_id: str = Field(..., min_length=1, max_length=100)
+
+
+class AssistantSessionResponse(BaseModel):
+    session_id: str
+    tenant_id: str
+    user_id: str
+    started_at: datetime
+
+
+class AssistantToolRequest(BaseModel):
+    trace_id: str = Field(..., min_length=8, max_length=100)
+    tenant_id: str = Field(..., min_length=1, max_length=100)
+    user_id: str = Field(..., min_length=1, max_length=100)
+    session_id: str = Field(..., min_length=1, max_length=64)
+    tool_name: AssistantToolName
+    arguments: dict[str, Any]
+
+
+class AssistantToolResponse(BaseModel):
+    ok: bool
+    tool_call_id: str
+    status: AssistantToolCallStatus
+    data: Optional[dict[str, Any] | list[dict[str, Any]]] = None
+    error_code: Optional[str] = None
+    error_message: Optional[str] = None
+    duration_ms: int
+
+
+class AssistantApprovalRequest(BaseModel):
+    approved_by: str = Field(..., min_length=1, max_length=100)
+
+
+class AssistantApprovalResponse(BaseModel):
+    tool_call_id: str
+    status: AssistantApprovalStatus
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+
+
+class AssistantTimelineItem(BaseModel):
+    tool_call_id: str
+    tool_name: str
+    status: str
+    input_summary: str
+    output_summary: Optional[str] = None
+    latency_ms: Optional[int] = None
+    error_code: Optional[str] = None
+    created_at: datetime
+
+
+class AssistantTimelineResponse(BaseModel):
+    session_id: str
+    items: list[AssistantTimelineItem]
