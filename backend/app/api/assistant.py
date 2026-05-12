@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import time
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -55,6 +55,19 @@ def _summarize(data: Any) -> str:
         return "no output"
     text_summary = str(data)
     return text_summary if len(text_summary) <= 180 else f"{text_summary[:177]}..."
+
+
+def _json_safe(value: Any) -> Any:
+    """Convert Python objects to JSON-serializable values."""
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, tuple):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    return value
 
 
 def _validate_read_sql(query: str, limit: int) -> None:
@@ -148,7 +161,7 @@ async def call_tool(request: AssistantToolRequest, db: Session = Depends(get_db)
                 "row_count": len(result_rows),
                 "truncated": len(result_rows) >= limit,
             }
-            tool_call.output_json = output
+            tool_call.output_json = _json_safe(output)
             tool_call.status = "succeeded"
 
         elif request.tool_name == "generate_chart_data":
@@ -182,7 +195,7 @@ async def call_tool(request: AssistantToolRequest, db: Session = Depends(get_db)
                 "series": [{"name": y_field, "data": y_values}],
             }
             tool_call.status = "executing"
-            tool_call.output_json = output
+            tool_call.output_json = _json_safe(output)
             tool_call.status = "succeeded"
 
         else:
@@ -248,11 +261,14 @@ async def call_tool(request: AssistantToolRequest, db: Session = Depends(get_db)
         db.rollback()
         raise
     except Exception as exc:
+        db.rollback()
         elapsed = int((time.time() - start) * 1000)
-        tool_call.status = "failed"
-        tool_call.error_code = "INTERNAL_ERROR"
-        tool_call.error_message = str(exc)
-        tool_call.latency_ms = elapsed
+        failed_call = db.query(AssistantToolCall).filter(AssistantToolCall.id == tool_call_id).first()
+        if failed_call:
+            failed_call.status = "failed"
+            failed_call.error_code = "INTERNAL_ERROR"
+            failed_call.error_message = str(exc)
+            failed_call.latency_ms = elapsed
         _create_audit_event(
             db,
             tenant_id=request.tenant_id,
