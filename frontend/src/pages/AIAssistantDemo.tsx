@@ -39,6 +39,12 @@ const statusColorMap: Record<string, string> = {
   draft: 'default',
 };
 
+interface ReasoningStep {
+  title: string;
+  detail: string;
+  status: 'planned' | 'done' | 'skipped';
+}
+
 const AIAssistantDemo: React.FC = () => {
   const { message } = App.useApp();
   const [sessionId, setSessionId] = useState<string>('');
@@ -47,13 +53,24 @@ const AIAssistantDemo: React.FC = () => {
   const [approvalLoading, setApprovalLoading] = useState(false);
   const [pendingToolCallId, setPendingToolCallId] = useState<string>('');
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
-  const [approvalNote, setApprovalNote] = useState('最近两周下滑，建议立即复盘');
+
+  const [question, setQuestion] = useState(
+    '看下近30天销售趋势，如果连续两周下滑，给张三创建一个复盘任务。'
+  );
+  const [reportText, setReportText] = useState('');
+  const [taskProposal, setTaskProposal] = useState('');
+  const [reasoningSteps, setReasoningSteps] = useState<ReasoningStep[]>([]);
 
   const latestSummary = useMemo(() => {
     if (!timeline.length) return '尚未执行';
     const latest = timeline[timeline.length - 1];
     return `${latest.tool_name} / ${latest.status}`;
   }, [timeline]);
+
+  const shouldCreateTask = useMemo(() => {
+    const q = question.toLowerCase();
+    return ['任务', '复盘', '跟进', '创建', '安排'].some((kw) => q.includes(kw));
+  }, [question]);
 
   const ensureSession = async (): Promise<string> => {
     if (sessionId) return sessionId;
@@ -67,8 +84,42 @@ const AIAssistantDemo: React.FC = () => {
     setTimeline(response.items || []);
   };
 
+  const summarizeTrend = (rows: Array<Record<string, any>>) => {
+    if (!rows.length) return { report: '未查询到有效数据。', isDownward: false };
+    const values = rows.map((r) => Number(r.gmv || 0));
+    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+    const last7 = values.slice(-7);
+    const prev7 = values.slice(-14, -7);
+    const last7Avg = last7.reduce((a, b) => a + b, 0) / Math.max(last7.length, 1);
+    const prev7Avg = prev7.reduce((a, b) => a + b, 0) / Math.max(prev7.length, 1);
+    const isDownward = last7Avg < prev7Avg;
+    const changePct = prev7Avg > 0 ? ((last7Avg - prev7Avg) / prev7Avg) * 100 : 0;
+
+    const report = [
+      `已分析近${rows.length}天销售额，日均 GMV 约 ${avg.toFixed(0)}。`,
+      `最近7天均值 ${last7Avg.toFixed(0)}，前7天均值 ${prev7Avg.toFixed(0)}。`,
+      `环比变化 ${changePct.toFixed(2)}%。`,
+      isDownward ? '结论：近期呈下滑趋势，建议安排复盘。' : '结论：暂无明显下滑趋势，可持续观察。',
+    ].join('\n');
+
+    return { report, isDownward };
+  };
+
   const runDemoFlow = async () => {
     setLoading(true);
+    setReportText('');
+    setTaskProposal('');
+    setReasoningSteps([
+      { title: '理解问题', detail: `解析你的问题：${question}`, status: 'done' },
+      { title: '获取数据', detail: '调用 read_sql 获取近30天GMV趋势', status: 'planned' },
+      { title: '生成图表', detail: '调用 generate_chart_data 组织可视化数据', status: 'planned' },
+      {
+        title: '行动决策',
+        detail: shouldCreateTask ? '若趋势下滑则申请创建跟进任务' : '本次仅给出分析结论，不触发写操作',
+        status: 'planned',
+      },
+    ]);
+
     try {
       const sid = await ensureSession();
 
@@ -89,6 +140,8 @@ const AIAssistantDemo: React.FC = () => {
         return;
       }
 
+      setReasoningSteps((prev) => prev.map((s, idx) => (idx === 1 ? { ...s, status: 'done' } : s)));
+
       await callAssistantTool(
         sid,
         TENANT_ID,
@@ -101,25 +154,38 @@ const AIAssistantDemo: React.FC = () => {
           y_field: 'gmv',
         }
       );
+      setReasoningSteps((prev) => prev.map((s, idx) => (idx === 2 ? { ...s, status: 'done' } : s)));
 
-      const followupRes = await callAssistantTool(
-        sid,
-        TENANT_ID,
-        USER_ID,
-        'create_followup_task',
-        {
-          title: '本周销售复盘',
-          assignee: '张三',
-          due_date: '2026-05-16',
-          priority: 'high',
-          context: approvalNote,
+      const rows = (((readRes.data as Record<string, any>) || {}).rows || []) as Array<Record<string, any>>;
+      const { report, isDownward } = summarizeTrend(rows);
+      setReportText(report);
+
+      if (shouldCreateTask && isDownward) {
+        const dynamicTitle = question.includes('华东') ? '华东销售下滑复盘' : '销售趋势复盘';
+        const followupRes = await callAssistantTool(
+          sid,
+          TENANT_ID,
+          USER_ID,
+          'create_followup_task',
+          {
+            title: dynamicTitle,
+            assignee: '张三',
+            due_date: '2026-05-16',
+            priority: 'high',
+            context: report,
+          }
+        );
+
+        setTaskProposal(`拟创建任务：${dynamicTitle}（负责人：张三，截止：2026-05-16）`);
+
+        if (!followupRes.ok && followupRes.status === 'pending_approval') {
+          setPendingToolCallId(followupRes.tool_call_id);
+          setApprovalModalOpen(true);
+          message.warning('已进入审批，请确认是否创建任务');
         }
-      );
-
-      if (!followupRes.ok && followupRes.status === 'pending_approval') {
-        setPendingToolCallId(followupRes.tool_call_id);
-        setApprovalModalOpen(true);
-        message.warning('已进入审批，确认后将自动创建跟进任务');
+        setReasoningSteps((prev) => prev.map((s, idx) => (idx === 3 ? { ...s, status: 'done' } : s)));
+      } else {
+        setReasoningSteps((prev) => prev.map((s, idx) => (idx === 3 ? { ...s, status: 'skipped' } : s)));
       }
 
       await refreshTimeline(sid);
@@ -150,7 +216,7 @@ const AIAssistantDemo: React.FC = () => {
     setApprovalLoading(true);
     try {
       await rejectAssistantToolCall(pendingToolCallId, 'manager_1');
-      message.info('已拒绝执行跟进任务');
+      message.info('已拒绝执行任务创建');
       setApprovalModalOpen(false);
       await refreshTimeline(sessionId);
     } catch (error) {
@@ -170,27 +236,27 @@ const AIAssistantDemo: React.FC = () => {
                 <Alert
                   type="info"
                   showIcon
-                  message="一键演示：read_sql -> generate_chart_data -> create_followup_task（审批）"
+                  message="输入任意业务问题，系统会展示计划、证据、结论与执行动作（可审批）"
                 />
 
                 <div className={styles.formGroup}>
-                  <Text strong>任务上下文备注</Text>
+                  <Text strong>你的问题</Text>
                   <Input.TextArea
                     rows={3}
-                    value={approvalNote}
-                    onChange={(e) => setApprovalNote(e.target.value)}
-                    placeholder="输入这次创建跟进任务的上下文"
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    placeholder="例如：看下近30天销售趋势，如果连续两周下滑就安排复盘"
                   />
                 </div>
 
                 <Space>
                   <Button type="primary" onClick={runDemoFlow} loading={loading}>
-                    执行完整演示
+                    执行问题
                   </Button>
                   <Button
                     onClick={async () => {
                       if (!sessionId) {
-                        message.info('暂无会话，请先执行演示');
+                        message.info('暂无会话，请先执行问题');
                         return;
                       }
                       await refreshTimeline(sessionId);
@@ -201,6 +267,26 @@ const AIAssistantDemo: React.FC = () => {
                 </Space>
 
                 <Divider />
+
+                <Card size="small" title="推理摘要（可解释过程）" className={styles.reasoningCard}>
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    {reasoningSteps.map((step) => (
+                      <div key={step.title} className={styles.reasoningRow}>
+                        <Tag color={step.status === 'done' ? 'green' : step.status === 'skipped' ? 'default' : 'blue'}>
+                          {step.status}
+                        </Tag>
+                        <Text strong>{step.title}</Text>
+                        <Text type="secondary">{step.detail}</Text>
+                      </div>
+                    ))}
+                  </Space>
+                </Card>
+
+                <Card size="small" title="复盘/分析内容" className={styles.reportCard}>
+                  <Paragraph className={styles.reportText}>{reportText || '执行后将显示分析内容。'}</Paragraph>
+                  {taskProposal && <Paragraph className={styles.reportText}><strong>{taskProposal}</strong></Paragraph>}
+                </Card>
+
                 <div className={styles.status}>
                   <Tag color="blue">Demo Status</Tag>
                   <div className={styles.statusContent}>
@@ -258,7 +344,7 @@ const AIAssistantDemo: React.FC = () => {
       >
         <Space direction="vertical" size="small">
           <Text>检测到写操作：`create_followup_task`</Text>
-          <Text type="secondary">将为“张三”创建“本周销售复盘”跟进任务。</Text>
+          <Text type="secondary">仅在问题明确需要行动且趋势下滑时触发。</Text>
           <Text type="secondary">tool_call_id: {pendingToolCallId}</Text>
         </Space>
       </Modal>

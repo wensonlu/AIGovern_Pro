@@ -133,6 +133,28 @@
   word-break: break-word;
 }
 
+.reasoningCard,
+.reportCard {
+  border-radius: 10px;
+  background: #fbfcfe;
+}
+
+.reasoningRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid #eef3f9;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.reportText {
+  white-space: pre-line;
+  margin-bottom: 8px !important;
+  color: #334155;
+}
+
 .toggleButton {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
