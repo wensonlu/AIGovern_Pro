@@ -113,6 +113,48 @@ export interface AnalysisResponse {
   recommendations: string[];
 }
 
+export type AssistantToolName = 'read_sql' | 'generate_chart_data' | 'create_followup_task';
+
+export interface AssistantSessionResponse {
+  session_id: string;
+  tenant_id: string;
+  user_id: string;
+  started_at: string;
+}
+
+export interface AssistantToolResponse {
+  ok: boolean;
+  tool_call_id: string;
+  status: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'executing' | 'succeeded' | 'failed';
+  data?: Record<string, any> | Array<Record<string, any>> | null;
+  error_code?: string | null;
+  error_message?: string | null;
+  duration_ms: number;
+}
+
+export interface AssistantApprovalResponse {
+  tool_call_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  approved_by?: string;
+  approved_at?: string;
+}
+
+export interface AssistantTimelineItem {
+  tool_call_id: string;
+  tool_name: AssistantToolName;
+  status: string;
+  input_summary: string;
+  output_summary?: string | null;
+  latency_ms?: number | null;
+  error_code?: string | null;
+  created_at: string;
+}
+
+export interface AssistantTimelineResponse {
+  session_id: string;
+  items: AssistantTimelineItem[];
+}
+
 // API 基础地址
 // 默认走同源相对路径，开发环境交给 Vite proxy 转发，避免浏览器跨域。
 // 如确需直连后端，可通过 VITE_API_URL 显式覆盖。
@@ -371,6 +413,52 @@ export async function analyzeDiagnosisMetric(metricName: string): Promise<Analys
   return callAPI<AnalysisResponse>(`/api/diagnosis/analyze/${metricName}`, 'GET');
 }
 
+export async function createAssistantSession(tenantId: string, userId: string): Promise<AssistantSessionResponse> {
+  return callAPI<AssistantSessionResponse>('/api/assistant/sessions', 'POST', {
+    tenant_id: tenantId,
+    user_id: userId,
+  });
+}
+
+export async function callAssistantTool(
+  sessionId: string,
+  tenantId: string,
+  userId: string,
+  toolName: AssistantToolName,
+  argumentsPayload: Record<string, any>
+): Promise<AssistantToolResponse> {
+  return callAPI<AssistantToolResponse>('/api/assistant/tools/call', 'POST', {
+    trace_id: `trace_${Date.now()}`,
+    tenant_id: tenantId,
+    user_id: userId,
+    session_id: sessionId,
+    tool_name: toolName,
+    arguments: argumentsPayload,
+  });
+}
+
+export async function approveAssistantToolCall(
+  toolCallId: string,
+  approvedBy: string
+): Promise<AssistantApprovalResponse> {
+  return callAPI<AssistantApprovalResponse>(`/api/assistant/approvals/${toolCallId}/approve`, 'POST', {
+    approved_by: approvedBy,
+  });
+}
+
+export async function rejectAssistantToolCall(
+  toolCallId: string,
+  approvedBy: string
+): Promise<AssistantApprovalResponse> {
+  return callAPI<AssistantApprovalResponse>(`/api/assistant/approvals/${toolCallId}/reject`, 'POST', {
+    approved_by: approvedBy,
+  });
+}
+
+export async function getAssistantTimeline(sessionId: string): Promise<AssistantTimelineResponse> {
+  return callAPI<AssistantTimelineResponse>(`/api/assistant/sessions/${sessionId}/timeline`, 'GET');
+}
+
 export default {
   checkHealth,
   chatWithKnowledge,
@@ -381,4 +469,9 @@ export default {
   getDiagnosisSummary,
   getDiagnosisMetrics,
   analyzeDiagnosisMetric,
+  createAssistantSession,
+  callAssistantTool,
+  approveAssistantToolCall,
+  rejectAssistantToolCall,
+  getAssistantTimeline,
 };
